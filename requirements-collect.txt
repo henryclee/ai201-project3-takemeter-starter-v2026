@@ -1,0 +1,22 @@
+# Extras for collect.py ONLY — kept out of requirements.txt on purpose, so the
+# install that matters for grading (pandas / transformers / torch / sklearn) stays
+# lean and untouched. Nothing here needs an account, an API key, or a .env file.
+#
+#     python -m pip install -r requirements-collect.txt
+#
+# Needs Python 3.10+ (3.11-3.13 recommended; not 3.14).
+#
+# reddrix is a no-API-key Reddit scraper: it impersonates a browser's TLS
+# handshake with curl_cffi, warms up Reddit session cookies, and renews them with
+# backoff when Reddit pushes back. Pinned with an upper bound because it is a
+# small third-party project that can break when Reddit changes: if a future patch
+# stops working, pin back to a known-good version.
+#
+# Transitively pulls camoufox[geoip] + playwright (~a few hundred MB) even though
+# the default curl_cffi path never launches a browser — reddrix imports camoufox
+# at module level. Only `--http-client camoufox` needs more:
+#
+#     reddrix install          # downloads the Camoufox browser, one time
+#
+# https://github.com/Coding-Doctor-Omar/reddrix
+reddrix>=0.1.7,<0.2

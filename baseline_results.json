@@ -1,0 +1,44 @@
+{
+  "model": "facebook/bart-large-mnli",
+  "n": 2,
+  "seed": 42,
+  "held_out": false,
+  "used_definitions": true,
+  "scores": {
+    "n": 2,
+    "accuracy": 0.5,
+    "f1_macro": 0.2222222222222222,
+    "per_label": {
+      "analysis": {
+        "precision": 1.0,
+        "recall": 0.5,
+        "f1": 0.6666666666666666,
+        "support": 2
+      },
+      "hot_take": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 0
+      },
+      "reaction": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 0
+      }
+    }
+  },
+  "predictions": [
+    {
+      "text": "Everyone says the new course is faster but the results don't show it. Median finish was 3:58 last year on the old route and 3:56 this year. Two minutes across 4,000 runners is noise, not a faster course.",
+      "gold": "analysis",
+      "predicted": "reaction"
+    },
+    {
+      "text": "My heart rate drift over 90 minutes dropped from 11% to 4% across a year of easy running with no change in pace. That's the aerobic base people talk about, and it took eleven months to show up in the numbers.",
+      "gold": "analysis",
+      "predicted": "analysis"
+    }
+  ]
+}

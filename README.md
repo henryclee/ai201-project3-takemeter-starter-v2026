@@ -42,7 +42,13 @@
 <!-- Your community, and what your classifier sorts posts into. Three or four
      sentences. -->
 
+This will be looking at posts from the subreddit localllama (www.reddit.com/r/localllama).
 
+The candidate distinctions I have identified are :
+1. The post announces news about industry, a new model, a new harness, a new inference engine
+2. The post is asking for advice / help with implementation, purchasing decisions, etc...
+3. The post is a discussion relevant to AI, often humorous
+4. The post is showcasing a particular tech stack, often with a guide for how to replicate and benchmarks
 
 ---
 
