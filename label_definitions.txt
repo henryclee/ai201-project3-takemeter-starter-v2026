@@ -8,6 +8,6 @@
 
 announcement: Announces a new piece of hardware, LLM model, agent harness, or other technology being released.
 advice: Asks for advice or guidance about what to purchase, or tech support.
-news/discussion: Talks about current events in the AI/ML space.
+news/discussion: Current events in the AI/ML space, memes, humor.
 showcase: The post showcases a particular hardware or tech stack, often with benchmarks, and a guide for how to replicate
 

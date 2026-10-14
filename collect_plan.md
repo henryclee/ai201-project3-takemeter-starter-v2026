@@ -558,3 +558,38 @@ starter file was modified — `git status` should show only this file as new, pl
 
 
 
+
+## Appendix C — deviation after the first run: *hot* instead of *top*
+
+The plan above points at *top/all* + *top/year*, and the first full run did exactly
+that; its output is kept as `labels_top.csv` / `labels_meta_top.csv` for comparison.
+The dataset now in `labels.csv` is the same collector aimed at *hot*:
+
+```
+--windows hot:10,top:day:5,top:week:5,top:month:5
+```
+
+**Why.** *top/all* is a best-of gathered over the sub's whole life, so most of it
+predates the last month. *hot* is what the community is reading now — the collected set
+spans 0–9 days old, median 5, with 404 of 500 inside a week. The price is the score
+floor: median disclosed score 26 rather than 1,182, and 113 rows between 1 and 9
+upvotes. That trade is stated in the README rather than papered over. The two sets share
+only 12 posts, so this is a different corpus, not a re-shuffle of the same one.
+
+**Three things the hot run surfaced that the plan did not anticipate.**
+
+1. `hot` takes no `t=` window, so `parse_windows` now reads a digits-only second field
+   as a page count — `hot:10` is ten pages of hot, never a `hot/10` ranking.
+   `feed_url` already suppressed `t=` for non-`top` sorts; the labelling did not.
+2. One hot crawl reaches Reddit's ~500-item cap by itself (540 seen, 520 kept), so the
+   `top/day` / `top/week` / `top/month` fill windows went unused. They stay in the
+   recipe as insurance for a slower moment in the sub.
+3. Reddit omits the `score` attribute on posts whose tally it declines to disclose, and
+   `collect.PostCard`'s `int(a.get("score") or 0)` invents a 0 from that absence. 97 of
+   the 500 rows were of that kind — every one of them, in fact, since not a single
+   row's 0 was a genuine nil. `blank_hidden_scores()` re-opens those rows and leaves the
+   score blank instead, so the sidecar no longer claims posts sit at zero when Reddit
+   never said so.
+
+The sidecar gained a `created` column for the same reason: "current" should be a fact a
+reader can check per row, not an adjective in a README.

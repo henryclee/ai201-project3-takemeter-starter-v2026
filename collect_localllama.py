@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Collect the top ~500 posts of r/localllama into labels.csv — no key, no comments.
+Collect the ~500 hottest posts of r/localllama into labels.csv — no key, no comments.
 
 This is a thin driver over collect.py (collect_plan.md §4, Option A): the starter
 script's transport and parsing are reused as-is — feed_url / fetch_page /
@@ -16,12 +16,17 @@ things the brief needs that collect.py's defaults get wrong (plan §2):
      default), and --min-title-chars (40) for title-only units, which is also the
      threshold link_heavy() uses for surviving prose — one rule, not two. The URL
      filter runs on the text actually kept, not on a discarded body.
-  3. One listing caps at ~500 items (page 6 of top/all comes back empty), so
-     --limit 500 on a single window cannot yield 500. This walks several rankings
-     in rank order — top/all, then top/year, top/month in reserve — deduping by
-     post id as it goes, and stops the moment the target is met.
+  3. One listing caps at ~500 items (page 6 of a feed comes back empty), so
+     --limit 500 on a single window cannot yield 500. This walks several listings
+     in rank order — hot first, the current front page, then top/day, top/week and
+     top/month to fill the rest — deduping by post id as it goes, and stops the
+     moment the target is met. hot has no time window of its own (t= is a top-only
+     parameter); the fill windows are what keep the tail recent instead of leaving
+     the run short of 500.
 
-Rows are collected in rank order (row 1 is the all-time #1) but written shuffled
+Rows are collected in rank order (row 1 is whatever the front page leads with, and
+each row carries its posted date in the sidecar so "current" is checkable) but are
+written shuffled
 with a fixed seed, because rank correlates with era and topic and a best-to-worst
 reading order would bias the cold labels (plan §7). The rank survives in the
 sidecar. Comments are never fetched, and no author names are stored anywhere.
@@ -30,17 +35,22 @@ Nothing here guesses a label: label and note are written as empty strings, for t
 labelling pass to fill in.
 
     .venv/bin/python collect_localllama.py --limit 500 \
-        --windows top:all:5,top:year:5,top:month:3 \
+        --windows hot:10,top:day:5,top:week:5,top:month:5 \
         --min-title-chars 40 --min-chars 120 \
         --sleep 1.0 --shuffle --seed 42 \
         --out labels.csv --meta labels_meta.csv
+
+The all-time variant, kept for comparison: --windows top:all:5,top:year:5.
 """
 
 import argparse
 import asyncio
 import csv
 import random
+import re
 import sys
+from collections import Counter
+from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -61,11 +71,16 @@ REMOVED = {"[removed]", "[deleted]", "[removed by author or community]"}
 # A title that is nothing but a media stub is not somewhere a claim was made.
 MEDIA_PREFIXES = ("[image]", "[gif]", "[video]", "https://", "http://")
 
-DEFAULT_WINDOWS = "top:all:5,top:year:5,top:month:3"
+DEFAULT_WINDOWS = "hot:10,top:day:5,top:week:5,top:month:5"
 
 
 def parse_windows(spec):
-    """`top:all:5,top:year` -> [(sort, time_range, max_pages)]; later = lower rank."""
+    """`top:all:5,hot:10` -> [(sort, time_range, max_pages)]; later = lower rank.
+
+    A digits-only second field is a page count, not a time range. `hot:5` is five
+    pages of hot, and hot/new have no window to name — `t=` only means something to
+    top — so `hot:5` must not come back labelled as a `hot/5` ranking.
+    """
     out = []
     for part in spec.split(","):
         part = part.strip()
@@ -73,8 +88,15 @@ def parse_windows(spec):
             continue
         bits = part.split(":")
         sort = bits[0].strip()
-        time_range = (bits[1].strip() or None) if len(bits) > 1 else None
-        pages = int(bits[2]) if len(bits) > 2 else 5
+        time_range, pages = None, 5
+        if len(bits) > 1:
+            second = bits[1].strip()
+            if second.isdigit():
+                pages = int(second)
+            else:
+                time_range = second or None
+                if len(bits) > 2:
+                    pages = int(bits[2])
         out.append((sort, time_range, pages))
     if not out:
         raise SystemExit("--windows listed nothing usable")
@@ -119,6 +141,36 @@ def unit(row, min_title_chars, min_chars):
     return text, None
 
 
+async def blank_hidden_scores(rx, items, sleep_s):
+    """Turn an invented 0 back into a blank.
+
+    Reddit omits the score attribute on posts whose tally it declines to disclose, and
+    collect.PostCard reads `int(a.get("score") or 0)` — so "not disclosed yet" and
+    "genuinely nil" both arrive as 0, and on the hot queue the undisclosed case is the
+    common one (97 of the 500 rows in the Oct 2026 hot crawl had no score attribute at
+    all, while still showing a comment count and a creation time). Re-opening only the
+    rows that read 0 is cheap; anything with a number on it is left alone. Blank beats
+    0 here: the sidecar should not tell the reader a post sits at nil when Reddit never
+    said so, and a README that quotes "minimum score 0" would be quoting an artefact.
+    """
+    zeros = [(text, meta) for text, meta in items if meta["score"] == 0]
+    if not zeros:
+        return items
+    c.log(f"  {len(zeros)} unit(s) read score 0 — re-checking whether Reddit omitted "
+          f"the attribute rather than the post sitting at nil")
+    hidden = 0
+    for done, (_text, meta) in enumerate(zeros, 1):
+        card = re.search(r'<shreddit-post[^>]*\bid="(?:t3_)?%s"' % re.escape(meta["id"]),
+                        await c.fetch_page(rx, meta["url"], sleep_s))
+        if card and not re.search(r'\bscore="[^"]+"', card.group(0)):
+            meta["score"] = None
+            hidden += 1
+        if done % 25 == 0:
+            c.log(f"    {done}/{len(zeros)} re-checked")
+    c.log(f"  {hidden} of {len(zeros)} carried no score attribute at all — left blank")
+    return items
+
+
 async def walk(rx, sort, time_range, pages, want, sleep_s,
                min_title_chars, min_chars, seen_ids, reasons):
     """One ranking's .rss pages, oldest-last cursor, until `want` fresh units are kept.
@@ -148,7 +200,7 @@ async def walk(rx, sort, time_range, pages, want, sleep_s,
                 continue
             kept.append((text, {"source": f"r/{SUB}", "url": row["url"], "id": row["id"],
                                "score": None, "kind": "post", "window": label,
-                               "rank": rank}))
+                               "rank": rank, "created": row.get("created", "")}))
             if len(kept) >= want:
                 break
         after = rows[-1]["raw_id"]
@@ -181,6 +233,7 @@ async def run(args):
             c.log(f"  score pass over the kept {len(items)} unit(s), not all "
                  f"{total_seen} seen; also re-checks removal/stickied/NSFW the feed hides")
             items = await c.add_scores(rx, items, sleep_s)
+            items = await blank_hidden_scores(rx, items, sleep_s)
 
     before = len(items)
     items = c.dedupe(items)
@@ -202,6 +255,15 @@ async def run(args):
               "window, or wait 10-15 minutes if Reddit rate-limited the run.")
         sys.exit(1)
 
+    if args.dry_run:
+        c.log(f"\ndry-run: {len(items)} unit(s) ready — nothing written to "
+              f"{args.out}")
+        summarize(items)
+        for text, meta in items[:8]:
+            flat = text.replace(chr(10), ' / ')
+            c.log(f"  [{meta['window']} #{meta['rank']}] {flat[:74]}")
+        return
+
     with open(args.out, "w", newline="", encoding="utf-8") as fh:
         writer = csv.writer(fh, quoting=csv.QUOTE_ALL)
         writer.writerow(["text", "label", "note"])
@@ -212,14 +274,15 @@ async def run(args):
         with open(args.meta, "w", newline="", encoding="utf-8") as fh:
             writer = csv.writer(fh, quoting=csv.QUOTE_ALL)
             writer.writerow(["text", "source", "url", "id", "score", "kind", "window",
-                            "rank"])
+                            "rank", "created"])
             for text, meta in items:
                 score = meta["score"]
                 writer.writerow([text, meta["source"], meta["url"], meta["id"],
                                "" if score is None else score, meta["kind"],
-                               meta["window"], meta["rank"]])
+                               meta["window"], meta["rank"], meta.get("created", "")])
 
     c.log(f"\nkept {len(items)} units")
+    summarize(items)
     c.log(f"Wrote {args.out} (text,label,note - label and note blank for you to "
           f"fill; the first 20 you read get note 'cold').")
     if args.meta:
@@ -230,9 +293,49 @@ async def run(args):
     c.log("Commit labels.csv when it's labelled - not before.")
 
 
+def summarize(items):
+    """What the batch is made of — how current it is, and how much of it is a title
+    alone. Both are claims the README has to be able to back up for a hot crawl, so
+    the collector prints them at the end of the run instead of leaving them to be
+    reconstructed by hand afterwards.
+
+    Ages come from the feed's own `updated` stamp, not from anything local, so the
+    numbers are Reddit's rather than ours.
+    """
+    wins = Counter(m["window"] for _t, m in items)
+    c.log("  windows: " + ", ".join(f"{k} {v}" for k, v in wins.items()))
+
+    # Same read validate_labels.py uses at line 84: unit() joins title and selftext
+    # with a blank line, so a unit without one stands on its title alone. Not `kind`
+    # — the brief's posts-only check passes only while every kind stays "post".
+    sep = chr(10) + chr(10)
+    title_only = sum(1 for t, _m in items if sep not in t)
+    c.log(f"  shape: {len(items) - title_only} with selftext | {title_only} title-only "
+          f"({title_only * 100 // max(len(items), 1)}%)")
+
+    ages = []
+    for _t, m in items:
+        stamp = (m.get("created") or "")[:10]
+        try:
+            ages.append((date.today() - date.fromisoformat(stamp)).days)
+        except ValueError:
+            continue                          # entry carried no usable timestamp
+    if ages:
+        week = sum(1 for a in ages if a <= 7)
+        month = sum(1 for a in ages if 8 <= a <= 30)
+        c.log(f"  age: {week} within 7 days | {month} 8-30 days | "
+              f"{len(ages) - week - month} over 30 days "
+              f"(newest {min(ages)}d, oldest {max(ages)}d)")
+
+    scored = sorted(m["score"] for _t, m in items if m["score"] is not None)
+    if scored:
+        c.log(f"  scores: min {scored[0]} | median {scored[len(scored) // 2]} | "
+              f"max {scored[-1]}")
+
+
 def main():
     parser = argparse.ArgumentParser(
-        description="Collect the top posts of r/localllama into a labels.csv "
+        description="Collect the hottest posts of r/localllama into a labels.csv "
                     "skeleton (label left blank - you fill it).",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
@@ -268,6 +371,8 @@ def main():
                        help="text,label,note skeleton (label blank)")
     parser.add_argument("--meta", default="labels_meta.csv",
                        help="provenance sidecar for the README; '' to skip")
+    parser.add_argument("--dry-run", action="store_true",
+                       help="show what would be written and stop; touches no files")
     parser.add_argument("--http-client", default="curl_cffi",
                        choices=["curl_cffi", "camoufox"],
                        help="how reddrix reaches Reddit; camoufox needs `reddrix "

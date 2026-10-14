@@ -101,6 +101,13 @@ def main():
          [("top", "all", 5), ("top", "year", 5), ("top", "month", 5)]),
         (m.parse_windows("top:all:5"), [("top", "all", 5)]),
         (m.parse_windows("new"), [("new", None, 5)]),
+        # A digits-only second field is pages, not a time range: hot/new have no
+        # t= to name, so "hot:5" is five pages of hot, never "hot/5".
+        (m.parse_windows("hot:5"), [("hot", None, 5)]),
+        (m.parse_windows("hot:10,top:day:5"),
+         [("hot", None, 10), ("top", "day", 5)]),
+        (m.parse_windows("new:20"), [("new", None, 20)]),
+        (m.parse_windows("top:year:3"), [("top", "year", 3)]),
         (m.window_label("top", "all"), "top/all"),
         (m.window_label("hot", None), "hot"),
     ]

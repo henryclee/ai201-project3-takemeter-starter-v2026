@@ -83,9 +83,9 @@ Asks for advice or guidance about what to purchase, or tech support.
 >
 
 ### `news/discussion`
-Talks about current events in the AI/ML space.
 
 **Definition:**
+Current events in the AI/ML space, memes, humor.
 
 **Example 1:**
 >
@@ -94,9 +94,10 @@ Talks about current events in the AI/ML space.
 >
 
 ### `showcase`
-The post showcases a particular hardware or tech stack, often with benchmarks, and a guide for how to replicate
 
 **Definition:**
+The post showcases a particular hardware or tech stack, often with benchmarks, and a
+guide for how to replicate
 
 **Example 1:**
 >
@@ -123,52 +124,71 @@ The post showcases a particular hardware or tech stack, often with benchmarks, a
 
 **Where the posts came from:**
 
-500 posts from **r/localllama**, ranked by *top*, collected **2026-10-14** with
+500 posts from **r/localllama**, ranked by *hot*, collected **2026-10-14** with
 `collect_localllama.py` — a thin driver over the starter's `collect.py`. It goes
-through Reddit's public **Atom feeds** (`reddit.com/r/localllama/top/.rss?t=all`,
-then `t=year`) using the `reddrix` scraper, so there is no app, no API key and no
-`.env`. Comments were never fetched, and no usernames are stored anywhere.
+through Reddit's public **Atom feed** (`reddit.com/r/localllama/hot/.rss`) using the
+`reddrix` scraper, so there is no app, no API key and no `.env`. Comments were never
+fetched, and no usernames are stored anywhere.
 
-One listing caps at ~500 items (page 6 of `top/all` comes back empty), so 500
-needs two windows: **368 units from *top/all*** and **132 more from *top/year***,
-deduped by post id (276 of `top/year`'s 464 were posts `top/all` had already
-given us). The batch covers ranks 2–499 of *top/all*; the all-time #1 is a
-13-character image caption (*"Bro whaaaat?"*) that falls under the title floor
-below, so the highest unit kept is #2.
+*hot* has no time window of its own — it is whatever the front page is showing — and a
+single crawl reaches Reddit's ~500-item cap by itself: **540 posts seen, 520 kept after
+the unit rule, trimmed to 500**. The 20 that went were 8 titles under 40 characters and
+12 selftext posts under 120. The driver can fall back to `top/day`, `top/week` and
+`top/month` to fill a run that comes up short; this one never needed them, so every row
+of the sidecar carries `window=hot`.
 
-"Top" here is verifiable, not asserted: a second pass opened all 500 post pages and
-recorded each score in the sidecar — **minimum 750 upvotes, median 1,182, maximum
-6,650**. That pass also re-checks the moderation flags the feed omits, and found
-no removed, stickied or NSFW posts among the 500.
+Currency is then checkable per row rather than asserted: the sidecar keeps each post's
+own creation timestamp, and the crawl spans **0 to 9 days old (median 5)**, with 404 of
+the 500 inside a week.
 
-Units are whole posts, verbatim, untrimmed: **title + selftext** where the post
-has selftext, and **the title alone** where it doesn't — 145 of the 500 (29%) are
-link/image posts kept as their title. That fallback is what makes 500 reachable at
-all: ~42% of this sub's top window has no body. Units under the floors were
-dropped whole (108 titles under 40 chars — meme captions whose punchline is in the
-picture; 58 selftext posts under 120 chars; 1 mostly-URL post), along with NSFW
-and removed posts. The written file is shuffled (`--shuffle --seed 42`) so the
-reading order isn't the ranking, because rank correlates with era and topic; URL,
-id, window, rank and score survive in the `labels_meta.csv` sidecar.
+Popularity is checkable too, with one honest asterisk. A second pass opened all 500 post
+pages: **403 disclose a score — minimum 1, median 26, 90th percentile 301, maximum
+5,234**. The other **97 are left blank, not zeroed**. Reddit omits the `score`
+attribute on posts whose tally it declines to disclose, and `int(a.get("score") or 0)`
+turns that absence into a 0 — so a naive sidecar would claim 97 posts sit at nil
+upvotes when Reddit never said so. The driver re-opens those rows and blanks the score
+(`blank_hidden_scores()`). The same pass re-checks the moderation flags the feed omits,
+and found no removed, stickied or NSFW posts among the 500.
 
-Hygiene scan of the finished 500: **no megathreads** (the one title matching
-"megathread" is a meta post *arguing about* them), **no ads or tracking links**,
-zero duplicate text, and no feed footers or usernames. The exact command that
-produced these files is recorded at the top of `collect_localllama.py`, so the
-collection is reproducible.
+Units are whole posts, verbatim, untrimmed: **title + selftext** where the post has
+selftext, and **the title alone** where it doesn't — **26 of the 500 (5%)** are
+link/image posts kept as their title. That is far fewer than the all-time version of this
+crawl produced (29%), because *hot* rewards text discussion while the all-time list is
+heavy with image posts. The written file is shuffled (`--shuffle --seed 42`) so the
+reading order isn't the ranking — with *hot* the two would otherwise be near-identical,
+and rank correlates with both topic and recency. URL, id, window, rank, score and posted
+date survive in the `labels_meta.csv` sidecar.
 
-Two caveats this dataset carries:
+Hygiene scan of the finished 500: **no megathreads**, no ad or sponsored markers, zero
+duplicate text, zero duplicate post ids, no HTML remnants, no feed footers, no bare-URL
+rows. Two rows contain a `utm_` parameter inside a link the poster wrote and six mention
+a `u/username` in the body — both are things posters typed, not metadata this collector
+added. The exact command that produced these files is recorded at the top of
+`collect_localllama.py`.
 
-- **145 units (29%) are titles only.** Some carry a full claim (*"Anthropic: We've
-  identified industrial-scale distillation attacks on our models by DeepSeek,
-  Moonshot AI, and MiniMax."*), some carry much less. Expect those rows to be the
-  classifier's worst — that is a finding about short link-bait titles, not a flaw
-  in the split.
-- **`bart-large-mnli` reads only the first ~1,024 tokens (~700 words)**, so the
-  longest posts are judged on their opening. 32 rows exceed 3,000 characters and
-  the longest is 19,126. They are kept whole because the template asks for it
-  ("Keep the whole post — don't trim it to fit"), and the number is disclosed here
-  rather than hidden by trimming.
+This dataset carries four caveats:
+
+- **Hot is a snapshot.** The ranking moves continuously, so re-running the same command
+  tomorrow yields a different 500. The *command* is reproducible; the *selection* is
+  not, and that is the price of choosing currency over a distilled best-of. What stays
+  reproducible is the artefact: `labels_meta.csv` pins all 500 post ids, so the corpus
+  behind any number in this report is fixed and linkable.
+- **Currency costs the score floor.** The all-time variant of this crawl (same
+  collector, `--windows top:all:5,top:year:5`, kept alongside as `labels_top.csv`) has
+  a minimum disclosed score of 750 and a median of 1,182. This one has a median of 26,
+  and 113 of the 403 disclosed scores sit between 1 and 9 upvotes. That is the trade
+  being made deliberately: the front page as it actually reads today, including posts the
+  community barely touched, rather than the sub's consensus best. The two sets share
+  only **12 posts**.
+- **26 units (5%) are titles only.** Some carry a full claim (*"Anthropic Executive
+  Says Open-Source AI Models Are Higher Risk"*), some carry much less. Expect those rows
+  to be the classifier's worst — a finding about link-bait titles, not a flaw in the
+  split.
+- **`bart-large-mnli` reads only the first ~1,024 tokens (~700 words)**, so the longest
+  posts are judged on their opening. 61 rows exceed 3,000 characters and the longest is
+  18,827. They are kept whole because the template asks for it ("Keep the whole post —
+  don't trim it to fit"), and the number is disclosed here rather than hidden by
+  trimming.
 
 **How I labelled them:** <!-- Cold first? Pre-labelled with AI and corrected?
 Say so plainly — the disclosure is required, not penalised. -->
