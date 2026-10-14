@@ -28,13 +28,18 @@ problems = []
 
 
 def check(label, bad, ok_note):
-    """`bad` = nothing (ok), a count, or a list of offending CSV line numbers."""
+    """`bad` = nothing (ok), a bool, or a list of offending CSV line numbers."""
     n = len(bad) if isinstance(bad, (list, tuple, dict)) else int(bool(bad) or 0)
-    if n:
-        problems.append(f"{label} ({bad if isinstance(bad, str) else bad})")
-        print(f"  FAIL {label} -> {bad if isinstance(bad, str) else bad[:15]}")
-    else:
+    if not n:
         print(f"  ok   {label} ({ok_note})")
+        return
+    if isinstance(bad, (list, tuple)):
+        ids = ", ".join(str(x) for x in list(bad)[:15])
+        shown = ids + (f" (+{n - 15} more)" if n > 15 else "")
+    else:
+        shown = str(bad)
+    problems.append(f"{label} -> {shown}")
+    print(f"  FAIL {label} -> {shown}")
 
 
 rows = list(csv.reader(open(PATH, encoding="utf-8")))
@@ -65,9 +70,11 @@ else:
     check("unknown label", sorted({l for l in filled if l not in TAXONOMY}),
           "all in taxonomy")
     counts = collections.Counter(filled)
-    top, share = counts.most_common(1)[0] if counts else ("-", 0)
-    check(f"label share (top: {top})", share / len(body) > 0.70 if body else False,
-          "no label above 70%")
+    top, n_top = counts.most_common(1)[0] if counts else ("-", 0)
+    share = n_top / len(body) if body else 0
+    check(f"label share (top: {top})",
+          f"{n_top} of {len(body)} rows ({share:.0%}) - over the cap" if share > 0.70
+          else False, "no label above 70%")
     print(f"  counts: {dict(counts)}")
     print(f"  cold-start rows (note=cold): "
           f"{sum(1 for r in body if r[2].strip() == 'cold')}")
