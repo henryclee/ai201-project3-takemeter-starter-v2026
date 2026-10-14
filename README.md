@@ -45,9 +45,9 @@
 This will be looking at posts from the subreddit localllama (www.reddit.com/r/localllama).
 
 The candidate distinctions I have identified are :
-1. The post announces news about industry, a new model, a new harness, a new inference engine
-2. The post is asking for advice / help with implementation, purchasing decisions, etc...
-3. The post is a discussion relevant to AI, often humorous
+1. The post announces a new piece of hardware, LLM model, agent harness, or other technology being released
+2. The post for advice or guidance about what to purchase, or tech support.
+3. The post is about current events in the AI/ML space.
 4. The post is showcasing a particular tech stack, often with a guide for how to replicate and benchmarks
 
 ---
@@ -60,7 +60,30 @@ The candidate distinctions I have identified are :
      The decision rule is worth a point on its own and it's the thing most
      people leave out. Every taxonomy has a hardest boundary. Name yours. -->
 
-### `label_one`
+### `announcement`
+
+**Definition:**
+Announces a new piece of hardware, LLM model, agent harness, or other technology being released.
+
+**Example 1:**
+>
+
+**Example 2:**
+>
+
+### `advice`
+
+**Definition:**
+Asks for advice or guidance about what to purchase, or tech support.
+
+**Example 1:**
+>
+
+**Example 2:**
+>
+
+### `news/discussion`
+Talks about current events in the AI/ML space.
 
 **Definition:**
 
@@ -70,7 +93,8 @@ The candidate distinctions I have identified are :
 **Example 2:**
 >
 
-### `label_two`
+### `showcase`
+The post showcases a particular hardware or tech stack, often with benchmarks, and a guide for how to replicate
 
 **Definition:**
 
@@ -98,6 +122,53 @@ The candidate distinctions I have identified are :
      cases. -->
 
 **Where the posts came from:**
+
+500 posts from **r/localllama**, ranked by *top*, collected **2026-10-14** with
+`collect_localllama.py` — a thin driver over the starter's `collect.py`. It goes
+through Reddit's public **Atom feeds** (`reddit.com/r/localllama/top/.rss?t=all`,
+then `t=year`) using the `reddrix` scraper, so there is no app, no API key and no
+`.env`. Comments were never fetched, and no usernames are stored anywhere.
+
+One listing caps at ~500 items (page 6 of `top/all` comes back empty), so 500
+needs two windows: **368 units from *top/all*** and **132 more from *top/year***,
+deduped by post id (276 of `top/year`'s 464 were posts `top/all` had already
+given us). The batch covers ranks 2–499 of *top/all*; the all-time #1 is a
+13-character image caption (*"Bro whaaaat?"*) that falls under the title floor
+below, so the highest unit kept is #2.
+
+"Top" here is verifiable, not asserted: a second pass opened all 500 post pages and
+recorded each score in the sidecar — **minimum 750 upvotes, median 1,182, maximum
+6,650**. That pass also re-checks the moderation flags the feed omits, and found
+no removed, stickied or NSFW posts among the 500.
+
+Units are whole posts, verbatim, untrimmed: **title + selftext** where the post
+has selftext, and **the title alone** where it doesn't — 145 of the 500 (29%) are
+link/image posts kept as their title. That fallback is what makes 500 reachable at
+all: ~42% of this sub's top window has no body. Units under the floors were
+dropped whole (108 titles under 40 chars — meme captions whose punchline is in the
+picture; 58 selftext posts under 120 chars; 1 mostly-URL post), along with NSFW
+and removed posts. The written file is shuffled (`--shuffle --seed 42`) so the
+reading order isn't the ranking, because rank correlates with era and topic; URL,
+id, window, rank and score survive in the `labels_meta.csv` sidecar.
+
+Hygiene scan of the finished 500: **no megathreads** (the one title matching
+"megathread" is a meta post *arguing about* them), **no ads or tracking links**,
+zero duplicate text, and no feed footers or usernames. The exact command that
+produced these files is recorded at the top of `collect_localllama.py`, so the
+collection is reproducible.
+
+Two caveats this dataset carries:
+
+- **145 units (29%) are titles only.** Some carry a full claim (*"Anthropic: We've
+  identified industrial-scale distillation attacks on our models by DeepSeek,
+  Moonshot AI, and MiniMax."*), some carry much less. Expect those rows to be the
+  classifier's worst — that is a finding about short link-bait titles, not a flaw
+  in the split.
+- **`bart-large-mnli` reads only the first ~1,024 tokens (~700 words)**, so the
+  longest posts are judged on their opening. 32 rows exceed 3,000 characters and
+  the longest is 19,126. They are kept whole because the template asks for it
+  ("Keep the whole post — don't trim it to fit"), and the number is disclosed here
+  rather than hidden by trimming.
 
 **How I labelled them:** <!-- Cold first? Pre-labelled with AI and corrected?
 Say so plainly — the disclosure is required, not penalised. -->
