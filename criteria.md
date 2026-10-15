@@ -54,35 +54,36 @@ whether you hit them:
 ## 1.
 
 <!-- Your criterion. It must name a number. -->
-
-
+The model achieves an overall accuracy of at least 0.65
 
 **Why this target:**
-
-
+With 4 labels, accuracy of 0.25 would be expected by random chance. A target of 0.65 is substantially higher than this baseline,
+and also higher than the 0.50 that would be possible if the model just learns to guess the largest label (0.50 -- see criterion 3)
 
 ---
 
 ## 2.
 
 <!-- Your criterion. -->
-
+Every label has an F1 of at least 0.55 on the held-out set, and the most frequent label has an F1 of at least 0.70.
 
 
 **Why this target:**
-
-
+The smallest label will have fewer training examples, so its F1 will be noisier. The largest label should perform more strongly
+because it has trained on more training examples.
 
 ---
 
 ## 3.
 
 <!-- Your criterion. -->
-
+No single label makes up more than 50% of labels.csv. Every label has at least 30 rows.
 
 
 **Why this target:**
-
+This is a dataset criterion. A model trained on a lopsided file will learn to guess the majority label. 
+50% caps the largest label at 2× an even split, so no label can carry the accuracy by itself. In order to be testable, 
+every label needs enough rows to appear in the test split at least a few times.
 
 
 ---
@@ -90,11 +91,12 @@ whether you hit them:
 ## 4.
 
 <!-- Your criterion. -->
-
-
+The trained accuracy on the held-out set exceeds the zero-shot baseline's accuracy by at least 0.05.
 
 **Why this target:**
 
+In order for the trained model to have any value, it must improve the classification on the dataset over the untrained model.
+At least a 0.05 accuracy gap suggests that the training represents a real improvement.
 
 
 ---
@@ -102,11 +104,11 @@ whether you hit them:
 ## 5.
 
 <!-- Your criterion. -->
-
+When the model’s top predicted probability is at least 0.80, it is correct at least 75% of the time on the held-out set.
 
 
 **Why this target:**
-
+Confident predictions should be more accurate than the overall .65 target, otherwise the probability score isn't meaningful.
 
 
 ---
