@@ -439,6 +439,11 @@ one label's definitions.
 I labelled a batch of the labels in labels.csv manually (note = "cold"). The
 remainder of the labels were pre-labelled by AI, and reviewed/corrected.
 
+## Stretch Feature 1 - A fourth label
+
+There are 4 labels in my taxonomy
+
+
 <!-- ═══════════════════════ UNIT 6 — THE TEST ═══════════════════════
 
      Don't fill these in during unit 5.
