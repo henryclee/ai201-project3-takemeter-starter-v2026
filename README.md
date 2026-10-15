@@ -369,15 +369,34 @@ where a post meets more than one criteria, the rule above describes order of pre
 
 **Base model:**
 
+"distilbert-base-uncased"
+
 **Settings:** <!-- epochs, learning rate, batch size, seed -->
 
+EPOCHS = 3
+LEARNING_RATE = 2e-5
+BATCH_SIZE = 16
+MAX_LENGTH = 512
+SEED = 42
 **Anything I changed from the defaults, and why:**
 
-**Split sizes:** <!-- train / val / test, and per-label counts in the test
+Changed MAX_LENGTH from 128 to 512, because my posts are substantially larger
+
+**Split sizes:** 
+<!-- train / val / test, and per-label counts in the test
 split. If a label had fewer than about 8 in test, say so — it explains a lot
 of next unit's variance. -->
 
+train 139  ·  val 31  ·  test 30
 
+                 train  val  test
+label                            
+announcement        34    7     7
+showcase            45   10    10
+advice              30    7     7
+news/discussion     30    7     6
+
+Test has <8 rows for announcement, advice, and news/discussion
 
 ---
 
@@ -393,16 +412,32 @@ of next unit's variance. -->
 **Moment 1**
 
 - *What I asked for:*
+I asked AI to scrape my chosen subreddit community for hot posts
 - *What came back:*
+AI generated labels.csv for me
 - *What I changed:*
+It initially scraped from "best" but since this isn't timely, I asked it
+to rerun the script, but select from "hot" to get a snapshot of what's hot
+on a given date (10/14/2026)
 
 **Moment 2**
 
 - *What I asked for:*
+I asked AI to review the labels, and automatically label the posts, as well as
+to find any problematic posts that would break my label taxonomy partition
 - *What came back:*
+It found several instances where my initial labels were ambiguous enough that
+it could not unequivocally partition the posts into different labels, as well
+as suggestions to resolve the problem.
 - *What I changed:*
+I made the rules for decision between problematic posts more explicit, and 
+eventually had to make an order of precedence for when a post met more than
+one label's definitions.
 
 **Pre-labelling disclosure:**
+
+I labelled a batch of the labels in labels.csv manually (note = "cold"). The
+remainder of the labels were pre-labelled by AI, and reviewed/corrected.
 
 <!-- ═══════════════════════ UNIT 6 — THE TEST ═══════════════════════
 
