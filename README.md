@@ -66,10 +66,20 @@ The candidate distinctions I have identified are :
 Announces a new piece of hardware, LLM model, agent harness, or other technology being released.
 
 **Example 1:**
->
+"Sipeed announces MaixStation, comparable to Strix Halo and DGX Spark"
 
 **Example 2:**
->
+"Qwen-Image-2.1-Turbo released!
+
+Qwen-Image-2.1-Turbo, create and edit images in just 8 denoising steps! Open weights now available!
+
+ Built on Qwen-Image-2.1, Turbo is an accelerated checkpoint on the same 7B visual generation architecture. 
+
+ Fewer steps does not mean lower quality: it still generates strong 2K images from text, and supports continued creation through natural-language edits, from adding accessories to changing a scene.
+
+ Start directly with Diffusers: load QwenImage21Pipeline and the checkpoint’s recommended 8-step sampling schedule is ready to go. 
+
+ Hugging Face: https://huggingface.co/Qwen/Qwen-Image-2.1-Turbo"
 
 ### `advice`
 
@@ -77,10 +87,42 @@ Announces a new piece of hardware, LLM model, agent harness, or other technology
 Asks for advice or guidance about what to purchase, or tech support.
 
 **Example 1:**
->
+"Title: Thinking about running Ling-3.1-flash on 4× DGX Spark — how practical is this?
+
+Ant Ling posted this demo of Ling-3.1-flash turning rough briefs into UIs and interactive prototypes. The weights are on HF now, and I'm thinking about running it across 4 DGX Sparks.
+
+ The model card lists 560B total parameters with 25B active per token. Their deployment examples use 8× H200 or 4× GB300, so I'm trying to figure out what a realistic Spark setup would look like.
+
+ I'd be using it for coding and iterative UI work. Generate something, review it, ask for changes, repeat. Single-user latency matters more to me than batch throughput.
+
+ What quantization would you start with, leaving enough memory for context and runtime overhead? And which serving stack would you use to split it across four Sparks?
+
+ my bigger question is whether this would feel usable once it starts making tool calls and reading longer contexts. fitting the weights is one thing, waiting forever between edits is another
+
+ Would appreciate advice from anyone running large MoEs across Sparks, especially measured prefill/decode speeds or things you wish you'd known before setting it up."
 
 **Example 2:**
->
+"Please recommend Qwen3.8-Flash-Next llama parameters
+
+I like tinkering with stuff and I think that now I understand at least on surface-level how a dense model like 27B works and what needs to be finetuned for a specific configuration.
+
+ Then, like everyone else, I discovered Strata and running a large moe locally became possible.
+
+ The problem is that I cannot get anywhere close to Strata's speeds with vanilla llama server. I have no idea what most of the moe-specific flags actually do to my machine and it all feels like a huge black box without feedback. It bothers me to not understand what's happening inside and what I need to improve or upgrade to make it better. 
+
+ I'm trying to run an IQ3_XXS on vanilla llama.cpp for which Strata gives about 35 tps on thinking and 50 tps code.
+
+ My best run so far on llama is 15 tps.
+
+ Hardware: 2 x RTX3060 12GB + RAM 64GB.
+
+ I cannot find the specific 800MB mtp q2_0 drafter used by Strata on HF. The only one I found is the mtp-Qwen3.8-Flash-Next-Q4_K_M.gguf, which is 3.5x the size. It makes decode considerably slower. For now I'm testing without mtp at all.
+
+ Tensor split works with dense models, doesn't work with Flash Next (allocating 23087.12 MiB on device 0: cudaMalloc failed). It feels like llama treats it like a 24GB vram card, not 2x12. Anything I should adjust here? 
+
+ Is anyone running on a similar setup? If you could share your working llama recipe for it, I would appreciate it. 
+
+ Thank you"
 
 ### `news/discussion`
 
@@ -88,10 +130,46 @@ Asks for advice or guidance about what to purchase, or tech support.
 Current events in the AI/ML space, memes, humor.
 
 **Example 1:**
->
+"Long Horizon Agents (Surviving Compaction)
+
+I struggled w/ context windows and compaction limits for a while. Post compaction stupidity and loss of context would have agents hallucinating wildly after about the third compaction.
+
+ Pi's context plugin helps, but adding a small proxy in front of my agents that let's them edit their system prompt has nearly stopped hallucination while adding a source of truth that the agent sees each turn.
+
+ To clarify: they don't directly edit their system prompt. They edit a file that the proxy appends to the system prompt. They see this text every turn as if it is their system prompt and it's cache stable between edits. They can swap these files in and out, add more than one, etc.
+
+ I don't claim to have solved the memory issue - my agents still forget things and have to figure them out all over again when they forget to take notes. But they are staying sane. They've been able to maintain state and continue working on the same project indefinitely.
+
+ The first agent to use the proxy as working memory has compacted 62 times on a budget of 128k. It's seen about 232M input tokens and generated 3.8M (i have nfc how this maths). It started out as a coder building a harness. It is now the project manager for the harnessed agents and managing a couple of production jobs. The code it wrote is the asset I wanted; the agent behind the code is the asset I need to protect.
+
+ How are you keeping your agents sane for the next decade?"
 
 **Example 2:**
->
+"Y'all this is a sexy paper; context language models
+
+Paper linky - Context Language Models
+
+ The central idea of the paper is incredibly simple. Give a model the ability to edit its context on-the-go like a file has major benefits on task performance, context management (memory) and even computational efficiency (both wall clock and total flops). Their paper shows mostly benefits and relatively small downsides.
+
+ You can try it out as a plugin for pi!
+
+ In short, pros and cons Pros:
+
+ Improves outcomes on long running tasks Coding and deep research tasks Open discovery problems (long horizon research tasks, /goal loops etc) Inference can become more compute-efficient and wall-clock efficient Note, this depends on a caching optimization in the inference engine Much less context bloat, meaning it's more (V)RAM efficient No more slow and unreliable compacts Cons:
+
+ The cache optimization only exists for SGLang Prompt injections (including hallucinated instructions) are much less likely to be forgotten, increasing risks Requires harness customizations (authors supply a pi plugin) Some more context The approach works by modifying the harness to allow access to the context as a file. A model is allowed to edit the context as it would any other file.
+
+ They've tested the approach on models as small as qwen3.6 9b, as well as on qwen3.8 27b and claude sonnet 4.6.
+
+ Out-of-the-box, meaning just a small addition to the system prompt and tools to edit the context as a file, task performance, context management and efficiency measures remain approximately the same or improve by a little bit. The smaller qwen3.6 9b model in particular lost a little bit of efficiency, suggesting it works better on larger (smarter) models.
+
+ Performance can be massively improved with RL training, which the authors also did.
+
+ Wanna try it out? You can try it out right now if you use pi
+
+ Install the plugin https://github.com/lolipopshock/pi-clm, this comes from the authors directly After installation, adjust settings with /clm settings: Set steering to house-brief.md (modifies the system prompt, I suppose this should be left disabled for RL'd models only, of which there are none right now) Enable ""One tool per turn""; this one is important for performance Enable ""Size trailer""; this one appends context usage after every tool result. Without it, models are much less inclined to modify context on-the-go for large tool calls Fin Let me know how it goes!
+
+ Last, I also consulted this video by ""Prompt Engineering"" on YouTube in addition to the paper: https://www.youtube.com/watch?v=Bgtr1Ue40Jo"
 
 ### `showcase`
 
@@ -100,20 +178,41 @@ The post showcases a particular hardware or tech stack, often with benchmarks, a
 guide for how to replicate
 
 **Example 1:**
->
+"Now you can grow Bonsai on your potato
+
+No more excuses for GPU-poor folks not to start LLMing!
+
+ Full 27B-class reasoning in ternary transformer weights, for llama.cpp (CUDA, Metal, CPU)
+
+ ~9.3x smaller than FP16 (ideal) | 98.2% of FP16 intelligence retained | ~47 tok/s on an Apple M5 Max laptop
+
+ Highlights ~5.9 GB language model (down from ~54 GB FP16) — full 27B-class reasoning on a standard laptop or a single GPU 98.2% of FP16 intelligence retained: 84.78 average across 14 thinking-mode benchmarks — far above the conventional IQ2_XXS build (72.59) at about 82% of its footprint, and within 0.4 points of UD-Q4_K_XL at three times the footprint Retains thinking, reasoning, and agentic behavior deep in the sub-4-bit regime, where conventional low-bit representations collapse: math within half a point of full precision (96.57), coding level with the baseline (89.42), agentic tool calling at 74.92 End-to-end ternary language weights across embeddings, attention projections, MLP projections, and LM head, at a true 1.72 bits per weight — no high-precision escape hatches behind a low-bit label; the vision tower ships as a separate Q8_0 mmproj pack 262K-token context on-device, kept practical by the Qwen3.8-27B hybrid-attention backbone (~75% linear attention) Two GGUF packings with custom ternary hybrid-attention kernels for llama.cpp (CUDA, Metal) — PTQ1_0 packs trits densely (1.75 bits/weight, 5.95 GB), PQ2_0 stores each trit in a 2-bit slot (2.13 bits/weight, 7.21 GB); packed weights are consumed directly, never expanded back to FP16"
 
 **Example 2:**
->
+"Oh-My-Pocket mobile harness (iOS + Android)
+
+Fork of Pi-Pocket that I’m working on, really enjoying coding from my phone 
+
+ Custom router editor
+ Better context baseline
+ Agent definitions
+ Prune before summarizing
+ Remote support
+
+ REPO: https://github.com/T-Crypt/oh-my-pocket"
 
 ### The hardest boundary
 
 **Which two labels:**
+Announcement and Showcase are often difficult to distinguish between, because there are a lot of posts 
+where the poster is showcasing a new inference engine, or finetuned model, which also sort of fits into
+the announcement category.
 
 **The decision rule I used every time:**
 <!-- e.g. "If the post names a specific checkable fact, it's `analysis`, even
      if the tone is heated." -->
-
-
+If the post is from a user announcing a project that they have been working on, then it is a showcase. If 
+it is a new model, or from an established lab, then it is an announcement.
 
 ---
 
@@ -124,71 +223,9 @@ guide for how to replicate
 
 **Where the posts came from:**
 
-500 posts from **r/localllama**, ranked by *hot*, collected **2026-10-14** with
-`collect_localllama.py` — a thin driver over the starter's `collect.py`. It goes
-through Reddit's public **Atom feed** (`reddit.com/r/localllama/hot/.rss`) using the
-`reddrix` scraper, so there is no app, no API key and no `.env`. Comments were never
-fetched, and no usernames are stored anywhere.
-
-*hot* has no time window of its own — it is whatever the front page is showing — and a
-single crawl reaches Reddit's ~500-item cap by itself: **540 posts seen, 520 kept after
-the unit rule, trimmed to 500**. The 20 that went were 8 titles under 40 characters and
-12 selftext posts under 120. The driver can fall back to `top/day`, `top/week` and
-`top/month` to fill a run that comes up short; this one never needed them, so every row
-of the sidecar carries `window=hot`.
-
-Currency is then checkable per row rather than asserted: the sidecar keeps each post's
-own creation timestamp, and the crawl spans **0 to 9 days old (median 5)**, with 404 of
-the 500 inside a week.
-
-Popularity is checkable too, with one honest asterisk. A second pass opened all 500 post
-pages: **403 disclose a score — minimum 1, median 26, 90th percentile 301, maximum
-5,234**. The other **97 are left blank, not zeroed**. Reddit omits the `score`
-attribute on posts whose tally it declines to disclose, and `int(a.get("score") or 0)`
-turns that absence into a 0 — so a naive sidecar would claim 97 posts sit at nil
-upvotes when Reddit never said so. The driver re-opens those rows and blanks the score
-(`blank_hidden_scores()`). The same pass re-checks the moderation flags the feed omits,
-and found no removed, stickied or NSFW posts among the 500.
-
-Units are whole posts, verbatim, untrimmed: **title + selftext** where the post has
-selftext, and **the title alone** where it doesn't — **26 of the 500 (5%)** are
-link/image posts kept as their title. That is far fewer than the all-time version of this
-crawl produced (29%), because *hot* rewards text discussion while the all-time list is
-heavy with image posts. The written file is shuffled (`--shuffle --seed 42`) so the
-reading order isn't the ranking — with *hot* the two would otherwise be near-identical,
-and rank correlates with both topic and recency. URL, id, window, rank, score and posted
-date survive in the `labels_meta.csv` sidecar.
-
-Hygiene scan of the finished 500: **no megathreads**, no ad or sponsored markers, zero
-duplicate text, zero duplicate post ids, no HTML remnants, no feed footers, no bare-URL
-rows. Two rows contain a `utm_` parameter inside a link the poster wrote and six mention
-a `u/username` in the body — both are things posters typed, not metadata this collector
-added. The exact command that produced these files is recorded at the top of
-`collect_localllama.py`.
-
-This dataset carries four caveats:
-
-- **Hot is a snapshot.** The ranking moves continuously, so re-running the same command
-  tomorrow yields a different 500. The *command* is reproducible; the *selection* is
-  not, and that is the price of choosing currency over a distilled best-of. What stays
-  reproducible is the artefact: `labels_meta.csv` pins all 500 post ids, so the corpus
-  behind any number in this report is fixed and linkable.
-- **Currency costs the score floor.** The all-time variant of this crawl (same
-  collector, `--windows top:all:5,top:year:5`, kept alongside as `labels_top.csv`) has
-  a minimum disclosed score of 750 and a median of 1,182. This one has a median of 26,
-  and 113 of the 403 disclosed scores sit between 1 and 9 upvotes. That is the trade
-  being made deliberately: the front page as it actually reads today, including posts the
-  community barely touched, rather than the sub's consensus best. The two sets share
-  only **12 posts**.
-- **26 units (5%) are titles only.** Some carry a full claim (*"Anthropic Executive
-  Says Open-Source AI Models Are Higher Risk"*), some carry much less. Expect those rows
-  to be the classifier's worst — a finding about link-bait titles, not a flaw in the
-  split.
-- **`bart-large-mnli` reads only the first ~1,024 tokens (~700 words)**, so the longest
-  posts are judged on their opening. 61 rows exceed 3,000 characters and the longest is
-  18,827. They are kept whole because the template asks for it ("Keep the whole post —
-  don't trim it to fit"), and the number is disclosed here rather than hidden by
-  trimming.
+200 posts from www.reddit.com/r/localllama, ranked by hot, collected 2026-10-14 with
+`collect_localllama.py` — a thin driver over `collect.py`. It goes through Reddit's 
+public Atom feed (`reddit.com/r/localllama/hot/.rss`) using the `reddrix` scraper.
 
 **How I labelled them:** <!-- Cold first? Pre-labelled with AI and corrected?
 Say so plainly — the disclosure is required, not penalised. -->
