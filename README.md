@@ -443,6 +443,30 @@ remainder of the labels were pre-labelled by AI, and reviewed/corrected.
 
 There are 4 labels in my taxonomy
 
+## Stretch Feature 2 - A second training run
+
+Increased Epochs from 3 to 5. With additional training epochs, the
+training and validation loss continued to decrease. Accuracy and F1 Macro
+improved through epoch 4 and then plateaued at epoch 5.
+
+Epoch	Training Loss	Validation Loss	Accuracy	F1 Macro
+1	     No log	     1.318051	          0.354839	0.183761
+2	     1.355900	     1.260350	          0.419355	0.271499
+3	     1.273100	     1.192407	          0.516129	0.439699
+4	     1.190300	     1.160001	          0.580645	0.512426
+5	     1.112100	     1.140679	          0.580645	0.512426
+
+Interestingly, compared to the original run (committed), the even in epochs 2 and 3
+we see a difference:
+
+Epoch	Training Loss	Validation Loss	Accuracy	F1 Macro
+1	     No log	     1.322101	          0.354839	0.183761
+2	     1.356800	     1.275427	          0.387097	0.231579
+3	     1.286700  	1.259132	          0.419355	0.263889
+
+This is likely due to the learning rate being related to the total number of epochs, 
+so even at epoch 2 and 3, the results diverge between the two runs.
+
 
 <!-- ═══════════════════════ UNIT 6 — THE TEST ═══════════════════════
 
