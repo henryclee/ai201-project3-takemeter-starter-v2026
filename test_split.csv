@@ -1,0 +1,497 @@
+text,label,note
+"Long Horizon Agents (Surviving Compaction)
+
+I struggled w/ context windows and compaction limits for a while. Post compaction stupidity and loss of context would have agents hallucinating wildly after about the third compaction.
+
+ Pi's context plugin helps, but adding a small proxy in front of my agents that let's them edit their system prompt has nearly stopped hallucination while adding a source of truth that the agent sees each turn.
+
+ To clarify: they don't directly edit their system prompt. They edit a file that the proxy appends to the system prompt. They see this text every turn as if it is their system prompt and it's cache stable between edits. They can swap these files in and out, add more than one, etc.
+
+ I don't claim to have solved the memory issue - my agents still forget things and have to figure them out all over again when they forget to take notes. But they are staying sane. They've been able to maintain state and continue working on the same project indefinitely.
+
+ The first agent to use the proxy as working memory has compacted 62 times on a budget of 128k. It's seen about 232M input tokens and generated 3.8M (i have nfc how this maths). It started out as a coder building a harness. It is now the project manager for the harnessed agents and managing a couple of production jobs. The code it wrote is the asset I wanted; the agent behind the code is the asset I need to protect.
+
+ How are you keeping your agents sane for the next decade?",news/discussion,cold
+"Learn and get better at kernel work for LLM?
+
+Hi everyone,
+
+ Recently, I realize that “kernel work” is under both training (whether pre- or post-) and inference, so I want to learn and get better at kernel work (e.g., for LLM). My question is that should I just start with earlier chapters of the PMPP book and following GPU Mode lectures? As well as play around with Triton, cuTILE, Thinderkittens, and so on? I also want to complete the “Jax Scaling Book” in the near future, since it looks really relevant to LLM infra jobs.
+
+ Or is there a better approach towards this?
+
+ Thank you!
+
+ Some background: I’m currently looking for jobs and/or PhD positions. My previous background is mostly math and computer science.",advice,pre-labelled
+"NInfer6000 - Qwen 3.8 Flash Next @ 400 tg/s & 13K pp/s
+
+I've tinkered some more with my fork of NInfer for the Qwen 3.8 Flash Next model on RTX6000, and I've just hit 400tg/s under ideal conditions with it, so I thought it was worth a share.
+
+ This is NVFP4 MoE's and the rest is either 16-bit or 8-bit, so it uses full 96GB VRAM and ngram on disk.
+
+ Decode MTP3 with --lm-head-draft Context 16-bit 8-bit Change 512 197.1 tok/s 274.8 tok/s +39% 8K 303.1 tok/s 401.3 tok/s +32% 64K 291.7 tok/s 380.3 tok/s +30% 128K 282.6 tok/s 368.0 tok/s +30% 256K (maximum) 277.4 tok/s 360.6 tok/s +30% Prefill Prompt length 16-bit 8-bit Change 512 6,709 tok/s 5,905 tok/s -12% 8K 13,903 tok/s 13,908 tok/s 0% 64K 13,043 tok/s 12,171 tok/s -7% 128K 11,927 tok/s 11,032 tok/s -8% 256K (maximum) 9,941 tok/s 9,154 tok/s -8% More benchmark variants in the readme in the repo
+
+ The original NInfer is for 5090 cards 32GB and variants below that, but I was both missing Qwen 3.8 Flash Next in it (when I started the fork) and something that could properly use a RTX6000 96GB card. The performance and options in VLLM and llama.cpp offerings just didn't really cut it for me, so I've vibed on this for some weeks now.
+
+ This fork supports both the NVFP4 quants from ""radixark"" and the ""Swift 1.5"" variant with 'less thinking but same results' post-training. With non-experts downsampled from 16-bit to 8-bit, MTP3 and smaller drafting head you get up to 400 tokens per second. You can also opt not to do the downsampling at a performance cost, but a bit higher quality.
+
+ Vision is also supported. Have fun.
+
+ https://github.com/lkarlslund/ninfer6000",showcase,pre-labelled
+"No more RTX 5090
+
+Nvidia reportedly halts GeForce RTX 5090 production in favor of AI data center and professional GPUs — impending supply drought expected to drive up prices, RTX 5080 24GB rumored as new gaming flagship
+
+ https://www.tomshardware.com/pc-components/gpus/nvidia-reportedly-halts-geforce-rtx-5090-production-in-favor-of-ai-data-center-and-professional-gpus-impending-supply-drought-expected-to-drive-up-prices-rtx-5080-24gb-rumored-as-new-gaming-flagship",news/discussion,pre-labelled
+"k_llama.cpp MoE Optimizations: Expert Residency, Hybrid CPU/GPU Execution, Q2_0 Support
+
+Finally finished my fork:
+ https://github.com/IceFog72/ik_llama.cpp
+
+ Nothing else I wanted to add/try currently works
+
+ In short, it now has:
+
+ Bandwidth-adaptive CPU/GPU execution Shared expert-residency ideas from https://arxiv.org/pdf/2608.16157 integrated into this fork's profiler, bounded cache, and hybrid execution work This is an adaptation to ik_llama's scheduler and quantized kernels, not a complete implementation of FreeToken jadidbourbaki's n-gram cache optimization: https://github.com/jadidbourbaki/llama.cpp/pull/2 Q2_0 support, mainly so models like this can run: https://huggingface.co/ISTA-DASLab/Qwen3.8-Flash-Next-GSQ-RCO-Coder-GGUF Configurable expert-residency VRAM cap: --moe-resident-mib N Experimental residency options: --moe-resident-profiler old/new --moe-resident-grouping off/layout Basic usage:
+
+ -cmoe --moe-resident auto --moe-resident-mib N
+
+ I don't know how -ncmoe behaves because I can't properly test it on my hardware.
+
+ Without --moe-resident-mib N, --moe-resident auto will fill all available free VRAM with resident experts.
+
+ With something like:
+
+ --moe-resident auto --moe-resident-mib 2048
+
+ you can cap how much VRAM the resident cache uses and intentionally leave some free. There a useful cap how much helps to improve speed. If you set the cap too low, performance will drop too.
+
+ And gaze upon the magic of higher generation speed Kek
+
+ The important part: this only helps when the full MoE does not fit in VRAM and the GPU still has unused compute capacity, and free pci buss speed.
+
+ If your GPU was already fully loaded, this fork probably won't improve anything.
+
+ If your GPU is sitting around ~75% while you have many layers in VRAM, it may be worth trying 1-2 fewer regular GPU layers and using:
+
+ --moe-resident auto --moe-resident-mib 1024/2048
+
+ Adjust the cap depending on your GPU and available VRAM. The goal is to use resident experts to fill otherwise-idle GPU capacity rather than simply maximizing the number of fully offloaded layers.
+
+ On my setup — RTX 2060 6GB + Ryzen 7 2700X + 40 GB DDR 4 2993Mhz using arch — I have too little VRAM to offload enough complete expert layers for useful acceleration, so I use -cmoe.
+
+ Before these changes, generation could leave my GPU at only around 25-35% utilization, with roughly 1.5-2GB VRAM still free with fully loaded cpu.
+
+ With Qwen3.6-35B-A3B-UD-Q4_K_M.gguf at around 15-30k context, default ik_llama.cpp gives me roughly 23 t/s, while this fork gives me around 26-30 t/s.
+
+ So on my hardware I'm seeing roughly 20-30% speedup.
+
+ People with better GPUs and more VRAM may see better results, depending on where their bottleneck is.
+
+ The two experimental options still need more testing:
+
+ --moe-resident-profiler new/old
+
+ gives me a more balanced CPU/GPU work split, with somewhat more work left on the CPU and lower GPU load, but no clear speed difference for my setup
+
+ --moe-resident-grouping off/layout
+
+ also needs more testing, especially on better systems.
+
+ I sometimes see around 1-2 t/s difference from these options, but on my PC a browser tab sneezing can cause +/-2-4 t/s, so I don't consider that conclusive.
+
+ My current command:
+
+ ./llama-server \ -m /mnt/Kingstone_SSD/GGUF/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf \ --alias ""hz"" \ --host 0.0.0.0 \ -ctk q4_0 \ -ctv q4_0 \ -ctv-first q8_0,4 \ -ctv-last q8_0,4 \ -cmoe \ -b $((6 * 512)) \ -ub $((3 * 512)) \ --ctx-size $((64 * 1024)) \ --jinja \ -fa on \ --no-mmap \ --no-context-shift \ --temp 0.6 \ --top-k 24 \ --top-p 0.95 \ --min-p 0.00 \ -ngl 999 \ -np 1 \ --samplers ""penalties;dry;top_n_sigma;top_k;typ_p;top_p;min_p;xtc;temperature"" \ --moe-resident auto \ --moe-resident-mib $((2 * 512)) \ --k-cache-hadamard \ --v-cache-hadamard \ --moe-resident-profiler old \ --moe-resident-grouping off I plan to keep the fork updated with the main ik_llama.cpp branch for my own use.
+
+ If more people test it and provide feedback, especially on systems where the model still doesn't fully fit in VRAM, I may eventually make a PR to merge it upstream.",showcase,pre-labelled
+"I tried 3 Qwen model Building apps as test
+
+I build weather app on Android using Qwen models both models have the same simple prompt ( I need you to create an Android weather app on an Android device. It provides many features, such as widgets and other features. I need you to do it in a simple, fast way ) , the first is : Qwen flash next Q3_S .
+
+ 2- Qwen 3.8 27b Q4_XS . 3- Qwen 3.8 27b Q3_XXS
+
+ you will see the results in photos",showcase,cold
+"Strata with Qwen3.8 Flash Next UD-Q4_K_XL
+
+Been seeing quite a few posts about Strata lately, so I figured I'd give it a shot on my RTX PRO 6000 and I am very impressed. 
+
+ Most of the benchmarks I've seen are using IQ2 or IQ3 quants, so I wanted to see how Unsloth's UD-Q4_K_XL performs instead.
+
+ Setup:
+
+ GPU: 1x RTX PRO 6000 Workstation (96GB) Model: Qwen3.8-Flash-Next UD-Q4_K_XL (Unsloth) Backend: Strata KV cache: INT8, 256K context Speculative decoding: MTP-4 Output: ~256 tokens per task 2 runs per task Single-request decode (C1):
+
+ Task Strata (RTX PRO 6000) vLLM (RTX PRO 6000) vLLM (DGX Spark TP2) Prose 185.8 95.3 (-49%) 38.2 (-79%) Counting 320.4 171.0 (-47%) 75.3 (-77%) Coding 298.9 162.6 (-46%) 60.1 (-80%) Reasoning 289.1 149.6 (-48%) 51.8 (-82%) Both the VLLM instances were running Nvidia's NVFP4 quant so it's not exactly apples to apples, but the improved speeds are obvious.
+
+ Qwen 3.8 flash next is flying through coding tasks and it's crazy how efficient it is. Looking forward to Qwen 4!",showcase,pre-labelled
+"LoRA over GGUF: Train Qwen3.8-Flash-Next in 40G VRAM
+
+https://github.com/woct0rdho/transformers5-qwen3.5-recipe
+
+ An update to my LoRA over GGUF series: Now we can train Qwen3.8-Flash-Next (125B-A6B + 51B engram) in 40 GiB VRAM, with no CPU offloading, with engram on disk that does not reduce training speed.
+
+ On Strix Halo it trains context chunk size 2048 at 9.5 s/it. That's 200 token/s. There is still room to optimize, compared to > 1600 token/s PP we've achieved, and the common sense that LoRA training (with gradient checkpointing) takes 4-5x work of PP.
+
+ Since transformers 5.18, initial support for modern GGUF has been merged, and we can expect more work in this direction.
+
+ Spoiler: In the torch-ggml-ops repo there is something called GGTensile. Basically it's Tensile-like asm-level optimization on MMQ kernels. We already see it's faster than HIP in many cases. I'll make a new post when I have something to show on this.
+
+ I guess I'll skip DeepSeek-V4.1, unless someone can quantize or prune it to",showcase,pre-labelled
+"I built an open source framework for building RL environments. Named ""Seahaven"" after the fake town in The Truman Show.
+
+I've been optimizing long-running agents: rewriting their prompts, tools, skills and subagents, and keeping the changes that score better. I've been working on some version of this problem for over a decade (at Apple, my own startup, now Kiln).
+
+ The hard part is the eval environment. It needs realistic data, stateful writes, and a respawn from the same starting point for every single run. So I built the Seahaven framework.
+
+ Production and staging don't work: they're shared, and you can't reset them. Hand-written mocks reset fine, but they don't hold state, and they aren't realistic enough to fool an agent. And for long tasks, you want to grade what the agent actually changed in the world, not read a 50-turn transcript.
+
+ I built a few one-off environments. Doable, but hard, and every one rebuilt the same layer: a database per run, frozen starting states, parallel instances, clock control, a log of every change. So I pulled that layer into an open source framework. You write just the logic specific to your world. Seahaven handles the rest.
+
+ Why: evals and RL. Both need the same thing: thousands of isolated agent runs, each from a known starting state, graded on what the agent changed. I've mostly used Seahaven for harness optimization with evals. I'm starting to tinker with RL, and I'd love to hear from anyone who tries it with GRPO.
+
+ Example World: a fake Stripe. Stripe World has 24 tables and 155 API operations, behind the same tools as Stripe's own MCP server. It also serves Stripe's REST API, so well that the official Stripe SDK works against it unchanged.
+
+ What Seahaven handles:
+
+ A private world per run: each connection gets its own instance, and each instance gets its own SQLite DB, copied from a fixture in milliseconds. The agent can break anything. Fixtures: freeze starting states like small_startup or big_co, and reuse them across every run. Parallel: hundreds of instances per process. State diffs: every row the agent changed is logged, so you grade the result, not just the trace. Reproducible: same fixture, same clock, same random seed, same run. Composable: your world can include Stripe World (or any other world) to add its tools and APIs. Optimized for agents: includes the docs, linter and tests your coding agent needs to build a world. The loop can be as simple as this:
+
+ for rollout in range(100): with world.instance(""big_co"", seed=rollout) as inst: run_agent(inst) # your agent, your harness reward = grade(inst.state()) # every row the agent changed OpenEnv Compatible + MCP + Web Console:
+
+ Every world is an OpenEnv environment, so it works with Kiln auto-optimize, TRL's OpenEnv support or any other OpenEnv-compatible tool. You can publish worlds to Hugging Face. seahaven mcp serves a world to any MCP client, so you can point a local model at it. seahaven serve has a web console: open instances, call tools, and inspect state in your browser. Everything runs locally: Python 3.14+ and SQLite, no external services. I built it at Kiln, and Kiln uses it to evaluate and optimize agent harnesses. But Seahaven is standalone -- you don't need Kiln to use it.
+
+ Seahaven is open source (MIT).
+
+ Links
+
+ Seahaven on GitHub Stripe World Docs Kiln for optimizing harnesses Which world should I build next? Happy to answer any questions.
+
+ Side note: I made the video with videowright, another open source project of mine.",announcement,cold
+"Qwen 3.8 Flash Next-GSQ-RCO-IQ2_XS at ~21 tok/s on just an RTX 3060 12GB + 16GB DDR4 RAM(No gate pruning, 100% bit-exact)
+
+(Don't judge by the screenshot, the cache is cold. It hits 24+ tok/s with a warm cache!)
+
+ About two months ago, I made a post here asking whether predicting which MoE experts would be used on the next token could actually help speed up CPU/GPU offloading.
+
+ Original post: Tried predicting which MoE experts get used next token to speed up CPU/GPU offload
+
+ Well, quick confession first. I actually shelved that project shortly after.
+
+ The reason? The speeds I was getting back then were kinda fake. My engine was aggressively pruning experts based on their router weights, basically dropping cold experts to get better performance. Sure, the numbers looked great, but doing that on an already quantized model was hurting output quality and coherence.
+
+ Didn't really like that tradeoff, so I abandoned it and never released it.
+
+ Fast forward to recently, and Qwen 3.8 Flash Next (125B MoE, 512 experts, top-10 routing) drops.
+
+ I downloaded the 68GB GSQ-RCO IQ2_XS build, hoping to run it on my daily driver. That's when I decided to revisit the idea, but this time without cutting corners.
+
+ My setup GPU: RTX 3060 12GB RAM: 16GB DDR4, single channel (~19 GB/s bandwidth) OS: CachyOS / Arch Linux Storage: Mid-tier NVMe SSD (~2.1 GB/s read) Software: llama.cpp, built with CUDA And if you've tried running a 68GB MoE on a 16GB RAM machine with stock llama.cpp, you probably know how painful it gets.
+
+ I'm talking 1.4–2.1 tok/s, with over 1,500 major page faults per token in some runs. Linux ends up constantly pulling model data from the SSD because there's simply not enough memory to keep the working set around.
+
+ Then engines like Strata started showing up with claims of around 40 tok/s on consumer hardware. Pretty impressive, but there's a catch for people with less RAM. Some of these approaches rely on keeping around 24 GiB of experts pinned in memory using mlock. If you've only got 16GB RAM, you're obviously not doing that. Depending on the setup, you either run into OOM issues or end up with terrible performance.
+
+ So I went back to my original idea and started implementing it properly as an optional feature inside llama.cpp:
+
+ --moe-direct-io
+
+ The goal this time was simple. No dropping experts, no sacrificing output quality, and bit-exact output compared to stock.
+
+ The numbers All tests below were run with MemoryMax=6G using a cgroup.
+
+ Model: Qwen 3.8 Flash Next IQ2_XS (68GB)
+
+ Hardware: RTX 3060 12GB + 16GB DDR4 RAM
+
+ Engine / mode Decode speed Major page faults per token SSD I/O Output Stock llama.cpp (mmap) 1.41–2.12 tok/s 1,140–1,565 208–312 MB/token Coherent Our engine (blocking, demand-only) 0.73 tok/s 0 ~206 MB/token Bit-exact Our engine (--moe-direct-io + prefetch) 20.14–21.13 tok/s ~0 (+1 across 32 tokens!) Sequential streaming Bit-exact to stock The blocking version is actually slower than stock, which makes sense. It's basically waiting on disk reads without doing much to hide the latency.
+
+ The prefetching version is where things get interesting.
+
+ Once the cache warms up, it sustains 20–21 tok/s, with some runs hitting 24+ tok/s. That's roughly a 10–15x speedup over stock llama.cpp on the same machine.
+
+ And no, we're not getting those numbers by dropping experts. The output is bit-exact to stock.
+
+ That's the part I'm most excited about, honestly. Being able to run a model this large on a 16GB machine without the usual page-fault nightmare is pretty much what I wanted to achieve with the original project.
+
+ What's still rough It's not all perfect yet. There are a few things we're still working on.
+
+ 1. Cold starts are noticeably slower
+
+ Right now, the slots start empty (-1), so the first request on a new topic can start around 3.5–4.5 tok/s before ramping up to 20+ tok/s as the hot working set settles.
+
+ We're working on offline hot-profile seeding so it can start with a useful working set instead of learning everything from scratch.
+
+ 2. Prompt processing is slow
+
+ Feeding a prompt of 512+ tokens can touch a huge number of experts in a short period. That puts a lot of pressure on the 72 slots per layer and causes the prefill stage to struggle.
+
+ We're working on micro-batching prompt chunks (-ub 32) to help with this.
+
+ 3. Speculative decoding gets weird with SSD offloading
+
+ We found that standard MTP speculation can actually make things slower. Verifying 2–3 tokens can require loading the combined set of experts needed for those tokens from disk, which eats into the gains.
+
+ Right now, confidence-gated speculation (min-p 0.8) or suffix prompt lookup seems more promising for this kind of setup.
+
+ Anyway, that's where the project is at right now. Still plenty to improve, especially prefill and cold starts, but getting 20+ tok/s out of this setup without pruning experts is a pretty big deal for me.
+
+ Happy to answer questions or get into the io_uring and slot-remapping implementation details if anyone's interested.
+
+ (The second half of this post was written with some help from Claude.)",showcase,pre-labelled
+"GitHub - google-ai-edge/ml-drift: GPU-Accelerated AI/ML Inference
+
+Blog Post : ML Drift: Next-Gen GPU AI/ML Inference at the Edge - Google Developers Blog
+
+ The Google AI Edge Team is excited to announce the open-source release of ML Drift, our high-performance, cross-platform, on-device GPU compute engine specifically built for on-device AI/ML inference, under the Apache 2.0 license. By abstracting hardware and low-level API complexities of on-device GPUs across OpenGL ES, OpenCL, Metal, and WebGPU, ML Drift empowers developers to build real-time, interactive ML experiences from advanced video effects to generative AI across multiple platforms. Serving as the core GPU acceleration engine within LiteRT, ML Drift is also available as a standalone library for custom graphics and inference runtimes providing a unified foundation to deliver peak performance everywhere.",announcement,pre-labelled
+"Now you can grow Bonsai on your potato
+
+No more excuses for GPU-poor folks not to start LLMing!
+
+ Full 27B-class reasoning in ternary transformer weights, for llama.cpp (CUDA, Metal, CPU)
+
+ ~9.3x smaller than FP16 (ideal) | 98.2% of FP16 intelligence retained | ~47 tok/s on an Apple M5 Max laptop
+
+ Highlights ~5.9 GB language model (down from ~54 GB FP16) — full 27B-class reasoning on a standard laptop or a single GPU 98.2% of FP16 intelligence retained: 84.78 average across 14 thinking-mode benchmarks — far above the conventional IQ2_XXS build (72.59) at about 82% of its footprint, and within 0.4 points of UD-Q4_K_XL at three times the footprint Retains thinking, reasoning, and agentic behavior deep in the sub-4-bit regime, where conventional low-bit representations collapse: math within half a point of full precision (96.57), coding level with the baseline (89.42), agentic tool calling at 74.92 End-to-end ternary language weights across embeddings, attention projections, MLP projections, and LM head, at a true 1.72 bits per weight — no high-precision escape hatches behind a low-bit label; the vision tower ships as a separate Q8_0 mmproj pack 262K-token context on-device, kept practical by the Qwen3.8-27B hybrid-attention backbone (~75% linear attention) Two GGUF packings with custom ternary hybrid-attention kernels for llama.cpp (CUDA, Metal) — PTQ1_0 packs trits densely (1.75 bits/weight, 5.95 GB), PQ2_0 stores each trit in a 2-bit slot (2.13 bits/weight, 7.21 GB); packed weights are consumed directly, never expanded back to FP16",announcement,cold
+"Should i try moving from Qwen 3.8 27B Q6_K swift 1.5 to QFN Swift 1.5 IQ3_XXS GSQ RCO?
+
+I have my inference rig set up now for Qwen 3.8 27B Swift 1.5 Q6_K at 262144ctx with KV at Q8/Q8.
+
+ My rig has 40gb of vram over two radeon VIIs (2x16gb) and my laptops Rtx3080 Max Q (8gb), using rocm and vulkan. Additionally there is 64gb of ddr 4 ram. The current setup runs at around 450tps PP16384 and 15-30tps output using dflash2.
+
+ But i am unsure whether i should try moving to the new Qwen 3.8 Flash next Swift 1.5 at a quant of only iq3_xxs in terms of overall smartness - mostly for agentic development but also general agentic work in terms of design or ""do task x for me"".
+
+ Asking an ai model of choice to research this topic has not yielded any conclusive evidence for me - so heres my question:
+
+ Given my rock solid qwen 3.8 27b setup - do you think i should invest my time and tokens into getting a low Qwen 3.8 Flash next 1.5 GSQ RCO IQ3_XXS quant to run at possibly Q8/Q8 KV cache? Do you see a chance of it being smarter than my current setup at comparable speeds?
+
+ I see quite some hurdles to be taken because with a mixed backend of vulkan and rocm i can forget the use of things like strata and will have to pursue my own fork of some sorts - probably llama.cpp with heavy modifications.",advice,pre-labelled
+"Best value upgrade for my setup
+
+I'm a GPU poor, unlike the vast majority of you. I have finally secured funding, and would like to upgrade my rig.
+
+ At the moment, it consists of:
+
+ - RTX 5060 Ti, 16 GB VRAM
+
+ - 32 GB RAM
+
+ - 2 TB NVME
+
+ Given the skyrocketing prices of everything, I'd rather not wait for Black Friday to come around. Last year, it brought the RAMpocalypse, and we've not yet recovered. 
+
+ So, given this scenario, what would be the best value upgrade for this setup? I'd set the budget between $1000-3000. Make that euros, am in Europe.
+
+ I've considered:
+
+ - 1/2 used 3090s
+
+ - swapping the 5060 for:
+
+ -- an Intel Arc B70
+
+ -- a 7900 XTX
+
+ -- a 4090 (5090's are now absurd)",advice,pre-labelled
+"Engineer / developer observations of Gemma4-31B, Qwen3.8-27B, and 6.1-Sol for software engineering work
+
+For what it's worth.
+
+ I'm a mechanical engineer by education and software engineer in practice over the past ~20 years. Playing around with local models has been a recent hobby. Today I decided to do a few tests on things that I'd consider analogous to ""real"" work that I do, trying out some different combinations of models and harnesses.
+
+ Not to make this overly formal, but going into it the idea was:
+
+ Models: Gemma4-31B vs Qwen3.8-27B at the same quantization (an Unsloth flavor of Q4).
+
+ Harnesses: Codex CLI vs OpenCode CLI
+
+ Types of Work: ""Tell me about this code"" and ""Let's make something new"" 
+
+ GPT 6.1-Sol will enter the picture later. Harness differences were largely inconclusive at this time so I won't waste words on that.
+
+ Repository Inspection & Analysis Using a reference repository I'm very familiar with, the prompt was effectively, ""Read-only pass, tell me about such-and-such library, its core abstractions, from a consumer standpoint what I have to be cognizant of in situations X, Y, and Z, and what are the overall strengths and weaknesses of the approach. Keep it under 900 words.""
+
+ Qwen and Gemma both came up with equally good analyses and answers, with slightly different takes. Of note, Gemma4 did so far more efficiently than Qwen. More focused on the task as explicitly stated, with far fewer server calls (~10 compared to ~20-30 depending on harness). Qwen seemed more curious and had initiative to dig deeper than the specific request and put together a slightly more complete-picture assessment.
+
+ But again, at the end, both responses were equally good. I might lean Gemma4 as a preference here just on an efficiency basis.
+
+ Authoring a New Project I thought of an application that's concisely scoped, doesn't rely on a legacy codebase or significant external dependencies, and would probably take me ~1-2 days to hammer out by hand. ~8 paragraphs of prompt covering general concept, user experience in a couple different roles, design constraints and future-proofing needs. C# language with a reusable back end and WPF front end.
+
+ This showed more tangible differences.
+
+ Gemma4 once again seemed very efficient. Very fast planning and executed quickly. I'd give the end result a B-. It was clearly going to take a few iterations of feedback to converge on a usable solution, but that's not bad! After two passes of revisions I figured that was enough of an evaluation and put it aside.
+
+ Qwen3.8 doesn't seem nearly as ""smart"" as Gemma4 but far more ""persistent."" Many more small errors as it went; missing using statements, assorted other small mistakes, like frequently tripping over its own two feet as it went, but aiming for a higher target and sticking with it. Definitely took substantially longer. First-cut product was a step better than Gemma's and it only took 1 revision to get it to where I had something I could viably use. I'd give a B+. Solid result and an easy pick over Gemma.
+
+ While Qwen3.8 was doing its thing making the lights in my room flicker and dim, for grins I started up the ChatGPT desktop app, grabbed 6.1-Sol, and gave it the same prompt. Result? A+. Just an entirely different tier of functionality and polish. Really understanding the user context for interaction. One-shot solution that feels like, ""Welp, that's a wrap - ship it."" 
+
+ Definitely interesting seeing the differences between the two open-weight models I was evaluating. And for consumer hardware, I thought the results were very workable. Just clearly not in the same conversation as the frontier lab stuff. 
+
+ I think an interesting follow-up would be to put these to the task of real developer hell - working through old legacy code bases. There should be a benchmark for that! Maybe picking up old Doom or Command & Conquer source code will be a future test.",showcase,pre-labelled
+"Intel ""Crescent Island"" GPU Gets D-Series Name, Supports Up to 480 GB of LPDDR5X
+
+The newly named D-Series GPU has up to 480GB of LPDDR5X memory, 1.5TB/s of memory bandwidth
+
+ Intel rates it for up to 1.3 PetaFLOPS of FP8 performance, with support for formats ranging from FP4 to FP64. It features a total of 32 Xe3P cores, 256 XMX engines, 32 MB of unified L2 cache.
+
+ No cost estimates currently, I hope they launch a generic blower style variant at a later date for prosumer workstations.
+
+ Intel GPU D-Series Specifications Intel GPU D270 **Xe Cores** 32 **XMX Engines** 256 **GPU Clockspeed** ~2.5GHz **Peak Matrix Throughput (FP8)** 1.3 PFLOPS **Peak Vector Throughput (FP64)** 10.2 TFLOPS **Memory (Max)** 480GB LPDDR5X (ODMs), 160GB LPDDR5X (Intel) **Memory Bandwidth** 1.5TB/sec (~9375Mbps x 1280-bits) **ECC** Yes **L2 Cache** 32MB **I/O** PCIe Gen5 x16 **TDP** 350W **Form Factor** PCIe CEM (Air Cooled) **Architecture** Xe3P **GPU** Crescent Island Edit: Memory bandwidth added to the description, added a table via STH.",news/discussion,pre-labelled
+"What is everyone using to serve + monitor models across multiple GPUs/nodes? Trying to cut down on duct tape
+
+Running inference across three machines - an AMD box (Ryzen 9 9950X + RX 7900 XTX), a smaller NVIDIA box (i5-10400 + RTX 3050), and a MacBook Pro M3 - all running LM Studio/Ollama. The serving/monitoring side is where I lose the most time: no single place to see what model/version is loaded where, token throughput, VRAM vs unified-memory pressure, etc., without checking each machine by hand.
+
+ What are you all actually using for:
+
+ Multi-node / multi-GPU serving + routing? Observability that is not ""wire up Prometheus on every box""? Keeping track of model versions across nodes? Happy to share my current setup if it is useful.",advice,pre-labelled
+"How far are we from a local model being able to optimize it's own runtime stack?
+
+A lot of projects have come up recently consisting of specific hardware config specialized forks of existing conferencing engines, but they all seem to be made using Claude or OpenAI's biggest frontier models.
+
+ So given that open source is about 4-6 months behind, can we reasonably expect that local runnable models will start having the ability to dissect a big repo like llama cpp and optimize it for a given set of hardware sometime starting next year?
+
+ Or maybe are models like deepseek4.1 or glm5.3 already able to do that? What about their smaller twins? v4fvision and 5.3flash? Maybe even qwen flash next is capable of doing this? 
+
+ Qwen 4 is coming out end of October, anyone expect that model to be able to pull self-optimization off?",news/discussion,pre-labelled
+"I built a lightweight tool that automatically frees up VRAM for gaming and restores your local LLMs afterward
+
+I run local LLMs pretty much around the clock, but I also enjoy gaming on the same PC. Having models sitting in VRAM while gaming isn't exactly ideal, and constantly unloading and reloading them manually got annoying. So I built GamePause.
+
+ It's a lightweight, open-source Windows tray app that:
+
+ Automatically detects when you launch a game (Steam, Epic, GOG, etc.) Unloads your LM Studio/Ollama models to free up VRAM (other providers tentatively supported, not tested) Restores your models automatically when you're done gaming Supports per-game rules, manual controls, and crash recovery It works at the model server level, so it doesn't matter whether you're using a local chat interface, coding assistant, or an autonomous agent like Hermes or OpenClaw. It's designed to be a install-and-forget experience.
+
+ Everything runs locally, with no telemetry or accounts. Written in Rust and MIT licensed.
+
+ GitHub: https://github.com/Vkuparin/gamepause-for-local-ai
+
+ I feel like it's now tested and stable enough to share, but please do report on Github if you run into any issues.",announcement,pre-labelled
+"I made an ""Opus 5.5 style"" code-rendered video — but on a local NVFP4 Qwen 3.8 27B
+
+The ""Opus 5.5 makes videos"" thing has been going around — and the interesting part is that it isn't generating pixels. The model writes a self-contained HTML/Canvas scene where every frame is a pure function of time, a headless browser captures each frame, and ffmpeg encodes the MP4.
+
+ So I figured the question worth testing was: does that need a frontier cloud model? I ran the same pipeline on a **local NVFP4-quantized Qwen 3.8 27B**. No API, no GPU rental.
+
+ What it produced: a ~2-minute 1080p explainer of how GPS actually works. Deterministic canvas scenes, TTS narration, and BGM synthesized in WebAudio.
+
+ Video attached.",showcase,pre-labelled
+Woman used claude as her diary - and got reported to the police for contents of her diary,news/discussion,pre-labelled
+"Oh-My-Pocket mobile harness (iOS + Android)
+
+Fork of Pi-Pocket that I’m working on, really enjoying coding from my phone 
+
+ Custom router editor
+ Better context baseline
+ Agent definitions
+ Prune before summarizing
+ Remote support
+
+ REPO: https://github.com/T-Crypt/oh-my-pocket",announcement,cold
+"openbmb/MiniCPM-V-4.7-1B
+
+Gguf's: https://huggingface.co/openbmb/MiniCPM-V-4.7-1B-gguf
+
+ ""MiniCPM-V 4.7 is the latest model in the MiniCPM-V series, available in a 1B variant. It builds on the family's single-image, multi-image, and video understanding capabilities, combining stronger foundation capabilities with efficient visual encoding and on-device inference. Notable features of MiniCPM-V 4.7 include:
+
+ 🔥 A New Pareto Frontier in Performance and Efficiency. As model capabilities continue to advance, inference efficiency has become an important measure of a model's value. On resource-constrained devices, delivering the strongest possible capabilities within a limited resource budget calls for higher capability density. The 1B variant of MiniCPM-V 4.7 advances the performance–efficiency Pareto frontier for MLLMs. In Instruct mode, the 1B variant continues to improve foundation capabilities over MiniCPM-V 4.6 and substantially outperforms Qwen3.5 0.8B in both overall score and inference efficiency. 🚀 Efficient Architecture. Based on the intra-ViT early compression technique from LLaVA-UHD v4, MiniCPM-V 4.7 compresses visual tokens early within the vision encoder, reducing computation in subsequent encoder layers. It also supports mixed 4x/16x visual token compression, allowing developers to balance visual detail and inference cost across tasks. 💻 Broad Platform and Chip Support. MiniCPM-V 4.7 supports iOS, Android, and HarmonyOS, together with open-source on-device deployment support. It also provides day-0 support for chip platforms from Rockchip, Houmo, Intel, AMD, and Arm, extending deployment options across mobile and local computing devices. 🛠️ Developer Friendly. MiniCPM-V 4.7 supports inference frameworks including SGLang, vLLM, llama.cpp, and Ollama, along with fine-tuning frameworks including SWIFT and LLaMA-Factory. It provides GGUF, BNB, AWQ, and GPTQ quantized variants and adds FP8 quantization support. We also release Self-Replay Fine-Tuning, a fine-tuning approach that helps developers extend model capabilities at low cost while reducing forgetting of existing capabilities, making further customization easier.""",announcement,pre-labelled
+"2x 3090, 3x 3060 potential (smart and informed) future upgrade paths (send help)
+
+I'm trying to figure out the best long-term upgrade path for my setup. Right now my GPUs are spread across several consumer PCs:
+
+ Main: 5900X, 32GB DDR4, 2× RTX 3090 24GB. Secondary: i3-10320, 16GB DDR4, 2× RTX 3060 12GB. Daily driver: 5800X3D, 64GB DDR4, RTX 3080 10GB. Other hardware: Another RTX 3060 12GB (potentially to be put into main as a separate 3rd GPU and an i7-9700 mini-PC running various Docker services) Currently trying out Swift1.5 Qwen3.8-27B FP8 @ vLLM on the 3090s at speeds I'm pleased with, with smaller models for embeddings, reranking and background tasks on the secondary server. Most usage is coding agents, including concurrent agent workflows and long-context tasks.
+
+ Long-term, I'm thinking I want to test out larger MoEs, support more concurrent agents and have enough flexibility to test/run newer models. 
+
+ One option I'm considering is an auction for a used Supermicro workstation, likely an AS-5014A-TT with an M12SWA-TF WRX80 motherboard, Threadripper PRO 3000WX/5000WX CPU (exact model unknown), 8 populated DDR4 slots (capacity unknown), eight-channel DDR4-3200, six PCIe 4.0 x16 slots, a 2000W PSU and an RTX 4090. It could potentially accommodate six GPUs using risers and external mounting.
+
+ Expected total price is ~$6,275 based on previous auctions the last months. I could sell the RTX 4090 for ~$2,300, leaving approximately $4,000 for the workstation itself. The system powers on but hasn't been properly tested as per the auction description. Might be a sketchy bet. -_- I'm still waiting on a reply from the auctioneers if it's possible to get more hardware info. 
+
+ Current local used GPU prices (USD equivalent):
+
+ RTX 3090 24GB: $1,250+ RTX 3060 12GB: $260–365+ RTX 5060 Ti 16GB: $680+ RTX 4090 24GB: $2,300+ I'm trying to decide whether consolidating everything into a dedicated 4-6 GPU server makes more sense than continuing to upgrade separate consumer PCs. I'm also considering used EPYC DDR4/DDR5 platforms, but there's really not a lot available here and then I'd have to look at importing and all the hassle that brings.
+
+ I don't have a fixed budget. I'm trying to understand which upgrade paths actually make sense before deciding how much to spend. My main concern is spending a lot of money on a platform that becomes a poor choice and a regret within 1-2 years. Of course impossible to predict the future, but yeah.
+
+ What would you do in my position? Slap yourself in the face, realize that you're entering AI psychosis and need help or accept the fate that AI psychosis = reality we live in now and just go balls deep? Or are there other angles I haven't considered? 
+
+ Essentially I've just replaced bad drug addictions with a new, more expensive addiction, but at least I can pretend this is productive. 
+
+ I swear it feels like getting into local LLMs = that fucking brain tadpole from Baldur's Gate 3. At first it feels like you're gaining awesome powers, next thing you know it's consumed your brain, you're desperately searching for more hardware and you're hearing voices: 
+
+ ""just one more 3090.""
+ ""48GB VRAM isn't enough, you need 96.""
+ ""you could fit another GPU in there with a riser.""
+ ""it's not an addiction, it's infrastructure.""
+ ""four 3090s would actually be more power efficient.""
+
+ Narrator: ""You feel a familiar presence stirring behind your eyes. It offers you power beyond mortal comprehension.""
+
+ Tadpole: ""There's a used 3090 on marketplace.""
+
+ /cries in despair",advice,pre-labelled
+"MODS: Please, no more ""can I run Strata"" posts?
+
+They're noise in this subreddit that is only getting louder. There's a discord for these sorts of questions. We don't all need to see these,",news/discussion,pre-labelled
+"EmbeddingGemma 2 running locally in-browser on WebGPU
+
+Model: https://huggingface.co/google/embeddinggemma-2
+ Demo: https://huggingface.co/spaces/webml-community/embeddinggemma-2-webgpu",announcement,pre-labelled
+"Can any open-weight models handle a decomp/recomp project yet?
+
+Opus5.5, Sol6.1, Fable, and Astra have all proven they can and the scene has exploded this past week. Part of that is from the tools and feedback loops maturing though.
+
+ Are any open weight models (at all, so including K3, GLM5.3, Qwen3.8-Max, and Mimo-2.6) able to do this?
+
+ Can the larger models this sub regularly runs (GLM 5.3-Flash, Qwen 3.8-Next-Flash, V4.1-deepseek Flash..) handle a simpler one (GBA and PSP having smaller roms and mature pipelines)?",advice,pre-labelled
+"Converting dense models into Mixture-of-Experts
+
+For the past few weeks I've been trying out converting existing dense models to sparse Mixture-of-Experts models, with no pretraining from scratch.
+
+ The Idea If you can turn a dense model into an MoE that only runs part of its MLP per token, you get a model that's cheaper per token for roughly the same knowledge. Bigger labs do this kind of ""upcycling"" with huge compute budgets. I wanted to see how I could get with my RTX 4060 (8gb).
+
+ Conversions I have converted two models so far, Qwen/Qwen2.5-0.5B and HuggingFaceTB/SmolLM2-360M (they're purposefully small since my pc can't handle anything else). The conversions can be found here bayliner1980/Qwen2.5-0.5B-MoE-A0.3B and here bayliner1980/SmolLM2-360M-MoE-A0.2B.
+
+ Both models have 32 experts with top-8, plus a shared expert. Layers that were hardest to convert (the final layer, plus SmolLM2's layer 3) were replaced with they're original dense layers. This does cause a slight increase in MLP compute but I saw it as worth it. bayliner1980/Qwen2.5-0.5B-MoE-A0.3B has one dense at layer 23 and bayliner1980/SmolLM2-360M-MoE-A0.2B has two at layer 3 and layer 31. Both models were exported to Qwen2-MoE format.
+
+ Evaluations bayliner1980/Qwen2.5-0.5B-MoE-A0.3B
+
+ MLP Compute per token: ~40% of original
+
+ - WikiText-2 ppl C4 ppl Qwen2.5-0.5B (dense) 14.66 21.29 Qwen2.5-0.5B-A0.3B (MoE) 19.20 28.97 - HellaSwag (norm) ARC-Easy (acc) ARC-Challenge (norm) WinoGrande OpenBookQA (norm) Mean acc_norm Dense 0.497 0.646 0.321 0.569 0.354 0.467 Converted MoE 0.440 0.555 0.265 0.519 0.308 0.408 bayliner1980/SmolLM2-360M-MoE-A0.2B
+
+ MLP Compute per token: ~44% of original
+
+ - WikiText-2 ppl C4 ppl Dense 12.94 18.09 Converted MoE 19.11 26.50 - HellaSwag (norm) ARC-Easy (acc) ARC-Challenge (norm) WinoGrande OpenBookQA (norm) Mean acc_norm Dense 0.525 0.702 0.386 0.590 0.374 0.514 Converted MoE 0.446 0.579 0.290 0.506 0.316 0.417 Limitations There will most likely always be a quality gap. Since the model is at most using 50% of its original MLP compute it can't compete with the original.
+
+ At this scale the performance improvement is next to nothing since these models are already tiny. These models were chosen since they're small enough for me to actually work with on my hardware.
+
+ What's next Converting larger models, longer training, and testing finer expert layouts. Larger models need more compute than my card can give, so if you find this interesting there's a Ko-fi on the model pages, and anything new will be released openly.
+
+ This is mostly just an experiment that I found interesting but I'd still love feedback. Which model would you want to see converted next?
+
+ Edit: I attempted a full conversion of Qwen2.5-1.5B but my pc ran out of ram and it crashed. I will attempt it again but it will be a while so expect it tomorrow.",showcase,pre-labelled
+"Is there a better option than llama.cpp for 4GB VRAM for Higher tokens/sec?
+
+I love the idea of running local models on consumer hardware. I currently use `llama.cpp`, but I’ve been looking for a ""better"" alternative for a while now. I want something that utilizes my system resources more efficiently—for instance, by managing my RTX with 4GB VRAM more intelligently—and delivers higher tokens-per-second, all without the burden of heavy dependencies like PyTorch. I’ve done my research, and honestly, I haven't found a solution yet. I came across plenty of options, but unfortunately, many were built on Python and heavy libraries like PyTorch, which would essentially exhaust my limited VRAM before the model even loaded. Others were designed for running unquantized models, were outdated (based on models from two years ago), targeted a completely different class of devices (like MNN), or were merely ""cool-looking"" papers with no actual implementation.",advice,pre-labelled
+"Qwen3.8-27B vs Frontier vs Others
+
+UPDATE 2 DAYS LATER: Look what it took to beat Haiku 😄 Qwen3.8-27B bf16 at xhigh reasoning and max token per test raised from 16k to 48k.
+
+ https://preview.redd.it/7t1bnwx6rgvh1.png?width=2984&format=png&auto=webp&s=2f2295ed61d5a1345c5a8c2fba746d1d2cfcaca8
+
+ https://preview.redd.it/kjhz6c2oqgvh1.png?width=2960&format=png&auto=webp&s=8c6336ab5e8fe9c53f8e22b2f5e6349024245d61
+
+ Original Post
+
+ Here're results from my final test of coding, coding (panda/numpy), data analysis, data-driven decision-making, and local RAG domains I interact with most often.
+
+ This test, which is refined from a 500+ pack, now provides a differentiating signal between models after having weeded out tests all models consistently pass.
+
+ It’s a specific test developed based on my workflow and not at all an endorsement or damning of the models for all types of use cases. Aim is to identify models for heavy spreadsheet, rounding precision, array, coding type work that I can then trust the models to make decisions and act on. Verdict is review of any work I do locally has to be reviewed by Claude or gpt.
+
+ When Qwen4 or others get released, if they do better on this, gives me real good feel for my use case. Also good canary to when I can go fully local and invest in pricey gear.
+
+ https://preview.redd.it/5v05e81vu2vh1.png?width=2970&format=png&auto=webp&s=5bdaf24fab819c3f39bc385120988c3d99f8830c
+
+ Models on OpenRouter sometimes disclose their quantization and sometimes not. or-qwen-qwen3.8-27b is stock at bf16 or-qwen-qwen3.8-flash-next didn't disclose its quantization. In this test, it is the model that gets truncated the most (max token per test 16,384). Even after raising the max token for it from 16k to 32k, the number of truncations due to overthink didn't disappear entirely. iq3 GSQ-RCO is decent performer even placed among Q4s mradermacher's fine-tunes continue to standout for my type of work. Muse Glimmer, Qwen3.6-35B-A3B etc. included for comparison. https://preview.redd.it/3i7z3hbyw2vh1.png?width=2550&format=png&auto=webp&s=a3b84092baf491c62c8bd8e6ca8c38a1205635dd
+
+ https://preview.redd.it/tqg1u9g3w2vh1.png?width=2924&format=png&auto=webp&s=21f41501b2cb7dce4bb11d9d29f60250e895fef8",showcase,pre-labelled
