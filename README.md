@@ -45,10 +45,10 @@
 This will be looking at posts from the subreddit localllama (www.reddit.com/r/localllama).
 
 The candidate distinctions I have identified are :
-1. The post announces a new piece of hardware, LLM model, agent harness, or other technology being released
-2. The post for advice or guidance about what to purchase, or tech support.
-3. The post is about current events in the AI/ML space.
-4. The post is showcasing a particular tech stack, often with a guide for how to replicate and benchmarks
+1. Announcement: Announces that a new model / hardware now exists or is available
+2. Showcase: Shows what the poster achieved, measured, or configured
+3. Advice: The post is asking for advice from the community
+4. News/Discussion: Commentary on industry news or drama
 
 ---
 
@@ -81,6 +81,47 @@ Qwen-Image-2.1-Turbo, create and edit images in just 8 denoising steps! Open wei
 
  Hugging Face: https://huggingface.co/Qwen/Qwen-Image-2.1-Turbo"
 
+### `showcase`
+
+**Definition:**
+The post showcases a particular hardware or tech stack, often with benchmarks, and a
+guide for how to replicate
+
+**Example 1:**
+"SonicBoom: 52 tok/s decode on a laptop RTX 3050 (llama.cpp: 45) with the same quantized kernels, the difference is a graph compiler. No Python.
+
+I’ve been building SonicBoom, a native tensor runtime written in C++/CUDA with a C ABI and no Python anywhere in the stack. I just tagged v0.0.1, and the first target is local LLM inference on consumer GPUs.
+
+ Numbers (Gemma 4 E4B-it Q3_K_M on a laptop RTX 3050 8 GB, both runtimes using the same GGUF on the same machine, llama.cpp at commit 43fe9c64281):
+
+ SonicBoom llama.cpp Decode (tg64) 51.65 tok/s 45.20 tok/s Decode @ depth 2048 47.13 tok/s 45.21 tok/s Prefill 4100 tokens 1051 tok/s ~1944 tok/s TTFT, 4000-token prefix + 100 new 503 ms (prefix reuse) Why it matters: the quantized matmul kernels (MMVQ/MMQ) are ported from ggml, so the kernels are the same ones llama.cpp uses. The 14% decode lead comes entirely from the layer above them. A graph planner rewrites the model before it runs: activations are quantized once and reused, norm and activation are fused with quantization, dead computation is removed, and each decode step is captured and replayed as a single CUDA Graph. Code derived from ggml is about 8% of the core. The rest is the runtime.
+
+ Prefix reuse is exact: a continuation is token-for-token identical to a full prefill, which makes multi-turn chat and coding-assistant workloads cheap.
+
+ What it can’t do yet:
+
+ Prefill is about half of llama.cpp. It is a real batched path (int8 tensor-core plus cuBLAS), but there’s more to close. One verified model: Gemma 4 E4B. The quant formats are Q3_K, Q4_K and Q5_K only, so most Q4_K_M files from Hugging Face won’t load yet because they mix in Q6_K and Q8_0. Those formats are next, along with Qwen. It has only been tested on sm_86 (RTX 30-series), and sampling is greedy only. It’s not a drop-in llama.cpp replacement yet. The point of v0.0.1 is to show that the architecture works: once a graph compiler sits on top of the same kernels, the remaining gains come from the compiler instead of more hand-written kernels. Next on the roadmap are MLIR GPU codegen, speculative decoding, and more formats.
+
+ GPL-3.0. Benchmark conditions, reproduce commands and the model sha256 are in the README:
+ https://github.com/hardenedlinux/SonicBoom"
+
+**Example 2:**
+"omni-d1 600M by Liquid AI running in the browser using WebGPU
+
+Liquid just dropped d1-omni-600M and it's a decision model!
+
+ I ported it to runntime, the WebGPU inference library I'm currently working on. It's plain TypeScript on top of TypeGPU with no WASM and virtually no export step. The model is written directly from our core ops (matmul, attention, norms, a few elementwise bits), and the weights load straight from the HF safetensors.
+
+ The demo in the video is a fake comment feed being moderated live. Each comment gets 4 questions: toxic? spam? asking something? overall tone? Toxic and spam ones get removed.
+
+ ~180 ms per comment for all 4 questions, ~45 ms per question - the performance will most likely be way better once we spend some time tuning the engine for this model
+
+ I also tried making it play snake, but It did not go well lol. 
+
+ The d1 port isn't in the npm release yet. The rest of runntime is (detection, segmentation, speech-to-text, embeddings and more). Docs and live demos: https://docs.swmansion.com/runntime
+
+ Happy to answer questions about the port or WebGPU stuff in general."
+ 
 ### `advice`
 
 **Definition:**
@@ -171,35 +212,6 @@ Paper linky - Context Language Models
 
  Last, I also consulted this video by ""Prompt Engineering"" on YouTube in addition to the paper: https://www.youtube.com/watch?v=Bgtr1Ue40Jo"
 
-### `showcase`
-
-**Definition:**
-The post showcases a particular hardware or tech stack, often with benchmarks, and a
-guide for how to replicate
-
-**Example 1:**
-"Now you can grow Bonsai on your potato
-
-No more excuses for GPU-poor folks not to start LLMing!
-
- Full 27B-class reasoning in ternary transformer weights, for llama.cpp (CUDA, Metal, CPU)
-
- ~9.3x smaller than FP16 (ideal) | 98.2% of FP16 intelligence retained | ~47 tok/s on an Apple M5 Max laptop
-
- Highlights ~5.9 GB language model (down from ~54 GB FP16) — full 27B-class reasoning on a standard laptop or a single GPU 98.2% of FP16 intelligence retained: 84.78 average across 14 thinking-mode benchmarks — far above the conventional IQ2_XXS build (72.59) at about 82% of its footprint, and within 0.4 points of UD-Q4_K_XL at three times the footprint Retains thinking, reasoning, and agentic behavior deep in the sub-4-bit regime, where conventional low-bit representations collapse: math within half a point of full precision (96.57), coding level with the baseline (89.42), agentic tool calling at 74.92 End-to-end ternary language weights across embeddings, attention projections, MLP projections, and LM head, at a true 1.72 bits per weight — no high-precision escape hatches behind a low-bit label; the vision tower ships as a separate Q8_0 mmproj pack 262K-token context on-device, kept practical by the Qwen3.8-27B hybrid-attention backbone (~75% linear attention) Two GGUF packings with custom ternary hybrid-attention kernels for llama.cpp (CUDA, Metal) — PTQ1_0 packs trits densely (1.75 bits/weight, 5.95 GB), PQ2_0 stores each trit in a 2-bit slot (2.13 bits/weight, 7.21 GB); packed weights are consumed directly, never expanded back to FP16"
-
-**Example 2:**
-"Oh-My-Pocket mobile harness (iOS + Android)
-
-Fork of Pi-Pocket that I’m working on, really enjoying coding from my phone 
-
- Custom router editor
- Better context baseline
- Agent definitions
- Prune before summarizing
- Remote support
-
- REPO: https://github.com/T-Crypt/oh-my-pocket"
 
 ### The hardest boundary
 
@@ -211,8 +223,21 @@ the announcement category.
 **The decision rule I used every time:**
 <!-- e.g. "If the post names a specific checkable fact, it's `analysis`, even
      if the tone is heated." -->
-If the post is from a user announcing a project that they have been working on, then it is a showcase. If 
-it is a new model, or from an established lab, then it is an announcement.
+If the post contains the poster's own measured runs — their hardware, their configs, reproduction 
+steps — it's showcase. This decides even when the post is also announcing a release; rig evidence is decisive. 
+Otherwise, if the post's payload is "X is now available — link here," it's announcement. Numbers in an 
+announcement are claims about the thing (leaderboard placements, "beats X"), not bench measurements.
+Being the author of the thing does not make a post showcase. "I built X — link here" is announcement. 
+"I built X — here are my runs" is showcase.
+
+**When two labels both fit — the ladder:**
+
+`advice` > `showcase` > `announcement` > `news/discussion`. When two labels each
+independently qualify, the post takes the higher rung: a release post reporting its own runs
+is showcase, not announcement; a question carrying a full rig is advice, not showcase.
+
+The ladder only breaks ties between labels that qualify on their own. It never promotes a
+post that fails a definition.
 
 ---
 
@@ -228,15 +253,17 @@ it is a new model, or from an established lab, then it is an announcement.
 public Atom feed (`reddit.com/r/localllama/hot/.rss`) using the `reddrix` scraper.
 
 **How I labelled them:** <!-- Cold first? Pre-labelled with AI and corrected?
-Say so plainly — the disclosure is required, not penalised. -->
+
+20 labelled manually (note is "cold"), and the remainder were labelled by AI, and reviewed.
 
 **Counts per label:**
 
 | Label | Count | Share |
 |---|---|---|
-|  |  |  |
-|  |  |  |
-|  |  |  |
+| announcement | 48 | 24% |
+| showcase | 65 | 32.5% |
+| advice | 44 | 22% |
+| news/discussion | 43 | 21.5% |
 | **Total** |  | 100% |
 
 **Three hard cases**
@@ -246,24 +273,93 @@ Say so plainly — the disclosure is required, not penalised. -->
 
 **1.**
 > *The post:*
->
+"I made a Chrome extension that filters your YouTube feed with a small local model running in the browser (WebGPU, no server)
+
+EDIT (Oct 10): It's now on the Chrome Web Store, so no zip or Developer mode needed: https://chromewebstore.google.com/detail/opendecider-focus/npjgckljljojppjgikkiiaifoojkoebj
+
+ If you installed the zip earlier, remove that copy at chrome://extensions (it won't auto-update) and add the store one. You'll need to download the model once more.
+ -----
+ My YouTube feed was mostly songs, pranks and celebrity clips, so I built a filter that judges each video title with a small decision model running inside Chrome. Nothing is sent anywhere: no server, no API key, no account, and after one download it works offline.
+
+ What it does
+
+ - Hides the kinds of video you choose (11 kinds: music, gaming, comedy, vlogs, news, how-tos, and so on), or follows a rule you write: ""Hide videos about crypto"", ""Show only videos about cooking""
+
+ - Hides Shorts with one switch
+
+ - Bonus: select any text, right-click, and check it for prompt injection with the same model
+
+ How it runs
+
+ - The model is opendecider-nano (ONNX), loaded through ONNX Runtime Web in an offscreen document
+
+ - fp16 on WebGPU (755 MiB download), q8 on WASM without a GPU (569 MiB)
+
+ - 40 video titles: 1.1 s on WebGPU, about 15 s on CPU (M4 Max). About 3 GiB of RAM while loaded; it unloads after 10 idle minutes
+
+ - The weights are pinned by revision and SHA-256. The only network requests are to Hugging Face for those files
+
+ How well it works
+
+ - On 400 YouTube videos, with the creator's category as the label, rules like ""hide music"", ""hide gaming"" and ""only news"" score 0.934 balanced accuracy on average
+
+ - Sorting videos into the 11 kinds is harder: 0.780. Expect a few comedy and talk-show clips to get through the Focus preset
+
+ - Only evaluated on English titles. If you watch in other languages, I'd really like to know how it does
+
+ Try it (Web Store version is in review):
+
+ Download opendecider-focus-0.8.1.zip from https://github.com/manjunathshiva/opendecider/releases/latest and unzip it chrome://extensions → Developer mode → Load unpacked → pick the folder Click the icon → Download the model Apache-2.0. Benchmarks, code and limits: https://manjunathshiva.github.io/opendecider/guides/chrome-extension/
+
+ The idea comes from Quietly, which does this with a cloud API; I wanted the same thing running on-device. Feedback welcome, especially what it gets wrong."
 > *Could have been:*
->
+announcement or showcase
 > *I chose, because:*
+Showcase. This post actually cleanly fits into both, since it announces a new chrome extension, but also discusses 
+the performance on the specific hardware the poster is using (M4 Max). A rule needed to be created to 
+handle this overlap so we could have a clean partition. And by the rule, showcase > announcement.
 
 **2.**
 > *The post:*
->
+"Now you can grow Bonsai on your potato
+
+No more excuses for GPU-poor folks not to start LLMing!
+
+ Full 27B-class reasoning in ternary transformer weights, for llama.cpp (CUDA, Metal, CPU)
+
+ ~9.3x smaller than FP16 (ideal) | 98.2% of FP16 intelligence retained | ~47 tok/s on an Apple M5 Max laptop
+
+ Highlights ~5.9 GB language model (down from ~54 GB FP16) — full 27B-class reasoning on a standard laptop or a single GPU 98.2% of FP16 intelligence retained: 84.78 average across 14 thinking-mode benchmarks — far above the conventional IQ2_XXS build (72.59) at about 82% of its footprint, and within 0.4 points of UD-Q4_K_XL at three times the footprint Retains thinking, reasoning, and agentic behavior deep in the sub-4-bit regime, where conventional low-bit representations collapse: math within half a point of full precision (96.57), coding level with the baseline (89.42), agentic tool calling at 74.92 End-to-end ternary language weights across embeddings, attention projections, MLP projections, and LM head, at a true 1.72 bits per weight — no high-precision escape hatches behind a low-bit label; the vision tower ships as a separate Q8_0 mmproj pack 262K-token context on-device, kept practical by the Qwen3.8-27B hybrid-attention backbone (~75% linear attention) Two GGUF packings with custom ternary hybrid-attention kernels for llama.cpp (CUDA, Metal) — PTQ1_0 packs trits densely (1.75 bits/weight, 5.95 GB), PQ2_0 stores each trit in a 2-bit slot (2.13 bits/weight, 7.21 GB); packed weights are consumed directly, never expanded back to FP16"
 > *Could have been:*
->
+announcement or showcase
 > *I chose, because:*
+Announcement. Although this post does have benchmarks (47 tok/sec on M5 Max), they are attributed to the model card,
+not the poster's own hardware.
 
 **3.**
 > *The post:*
->
+"How to get more performance from dual A100 80GB?
+
+Dual A100X PCIe (link at Gen4 x8, weird DPU cards) in a 2U EPYC 7402P box, 256GB DDR4.
+
+ Proxmox with the GPU's passed through to debian 13, 610.43.02 drivers.
+
+ llama.cpp, qwen3.8 flash next UD-Q4_K_XL, Q8_0 MTP head, draft max 2, mmproj enabled. 
+
+ -sm layer -fa on --parallel 7 --ctx-size 1835008 -ub 2048 --cache-ram 32768
+
+ (7 slots x 262k), q8_0 K/V
+
+ Real world single user performance sits around 50-70tk/s. When bumping things up to 2-3 users/sessions, generation drops like a rock, 10-15tk/s. Seeking advice on how to better serve my team at work. We need models worth running and performance that doesn't have us waiting around.
+
+ I'm very partial towards MoE models, so no 27B. Should we swap over to vLLM, or run an instance of qwen3.6-35b-a3b on each card?
+
+ Use case is long session agentic 'coding' (more running linux commands, probing hardware devices). I'm frustrated and not sure how to squeeze more performance out of these. Thanks in advance!"
 > *Could have been:*
->
+advice or showcase
 > *I chose, because:*
+This post asks specifically for advice, but also describes their specific hardware with benchmarks. Again, in the case
+where a post meets more than one criteria, the rule above describes order of precedence. advice > showcase.
 
 ---
 

@@ -28,3 +28,5 @@ Thumbs.db
 # NOTE: results.json, results_three_seeds.json and baseline_results.json are
 # deliberately NOT ignored. They're evidence the run actually happened, and
 # they're part of what gets graded. Commit them.
+
+temp/
