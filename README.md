@@ -441,7 +441,15 @@ remainder of the labels were pre-labelled by AI, and reviewed/corrected.
 
 ## Stretch Feature 1 - A fourth label
 
-There are 4 labels in my taxonomy
+My taxonomy has four labels: announcement, showcase, and advice, plus news/discussion, 
+which I added. The first three each pin the poster to a specific artifact. An announcement 
+says "this now exists." A showcase says "here are my own measured runs of something." advice 
+says "tell me what to buy or how to fix this." All three are about doing or asking things 
+with an artifact. 
+
+What none of them captures is the rest of the community's traffic: posts where 
+the poster is a commentator — paper walkthroughs, industry news and drama, memes, and open-ended 
+experience threads, where the payload is the story and an invitation to discuss.
 
 ## Stretch Feature 2 - A second training run
 

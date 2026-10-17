@@ -69,8 +69,10 @@ Every label has an F1 of at least 0.55 on the held-out set, and the most frequen
 
 
 **Why this target:**
-The smallest label will have fewer training examples, so its F1 will be noisier. The largest label should perform more strongly
-because it has trained on more training examples.
+
+My smallest label, news/discussion, is 43 of 200 posts — 30 in train and only 6 in my test split. On 6 rows a single swapped post 
+moves F1 by roughly 0.1–0.2; 0.55 is the level I can defend as real. showcase, my largest label (65 of 200; 45 train, 10 test), 
+should clear 0.70.
 
 ---
 
@@ -81,10 +83,11 @@ No single label makes up more than 50% of labels.csv. Every label has at least 3
 
 
 **Why this target:**
-This is a dataset criterion. A model trained on a lopsided file will learn to guess the majority label. 
-50% caps the largest label at 2× an even split, so no label can carry the accuracy by itself. In order to be testable, 
-every label needs enough rows to appear in the test split at least a few times.
 
+My counts are announcement 48 (24%), showcase 65 (32.5%), advice 44 (22%), news/discussion 43 (21.5%) — a near-even 
+partition of r/localllama. The 50% cap is a guardrail my distribution passes with 17.5 points of margin; the 30-row floor 
+means that at a 70/15/15 split a label of exactly 30 rows puts only ~4-5 posts in test, below which a per-label F1 isn't 
+meaningful.
 
 ---
 
@@ -95,8 +98,11 @@ The trained accuracy on the held-out set exceeds the zero-shot baseline's accura
 
 **Why this target:**
 
-In order for the trained model to have any value, it must improve the classification on the dataset over the untrained model.
-At least a 0.05 accuracy gap suggests that the training represents a real improvement.
+Every post in r/localllama is about local LLMs, so they all share one surface vocabulary — tok/s, GGUF, VRAM, MoE. My labels 
+aren't separable by keywords, and the distinction that matters most (announcement vs showcase) turns on my rig-evidence rule, 
+which no zero-shot model knows. That leaves the baseline's best strategy as guessing the largest label (showcase, 32.5% of my 
+200). Training on my 139 labelled rows is what teaches the rule, so anything less than a 0.05 accuracy gain means the fine-tune 
+added nothing over majority-guessing.
 
 
 ---
@@ -110,6 +116,10 @@ When the model’s top predicted probability is at least 0.80, it is correct at 
 **Why this target:**
 Confident predictions should be more accurate than the overall .65 target, otherwise the probability score isn't meaningful.
 
+My taxonomy predicts where high confidence should live: advice posts literally ask a question, so those should dominate the 
+p ≥ 0.80 set, while the genuinely hard announcement-vs-showcase boundary should sit below it. If confident predictions were 
+right no more often than my 0.65 overall bar, the probability column would carry no information about my labels. 0.75 is that 
+separation, stated as a number.
 
 ---
 
