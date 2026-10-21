@@ -551,7 +551,7 @@ Accuracy moved 0.067 across seeds. Enough that a criterion landing within that b
 
 | Criterion | Target | Seed 42 | Seed 7 | Seed 2024 | Verdict |
 |---|---|---|---|---|---|
-| 1. overall accuracy of at least 0.65 |  |  |  |  |  |
+| 1. overall accuracy of at least 0.65 | 0.65 | 0.400 | 0.333 | 0.367  | MISSED  |
 | 2. all F1 >= 0.55, most frequent label F1 >= 0.70 |  |  |  |  |  |
 | 3. max label 50%, smallest label >= 30 rows |  |  |  |  |  |
 | 4. trained accuracy improvement over baseline >= 0.05 |  |  |  |  |  |
