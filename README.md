@@ -616,7 +616,7 @@ posts wer also misclassified as showcase.
      data/staff_taxonomy.md, not your own — so every argument below is made
      from those definitions and those decision rules. -->
 
-**Agreement rate:** ___ / 30 = ___%
+**Agreement rate:** 29 / 30 = 96.7%
 
 <!-- Nobody grades this number. A 60% who argues every disagreement from the
      stated rules beats a 95% who wrote "staff was right" nine times. Several
@@ -637,6 +637,14 @@ posts wer also misclassified as showcase.
      Pile (a) is the one that matters most for your diagnosis: if you applied a
      written rule two different ways on 30 posts, that is direct evidence about
      what you did across your own 200. -->
+
+Pile C
+
+"text": "Times are down about 3% since the shoe rules changed, so obviously the shoes are the whole story and the sport has a problem.",
+"staff": "hot_take",
+"mine": "analysis"
+
+Rule 1 is somewhat ambiguous, even in the example given. Whether a checkable fact is "load-bearing" or "decoration" seems entirely subjective. However, in this case, the post is basing an opinion on a checkable fact -- i.e. it is using the "times are down 3% since the shoe rules changed" as evidence for the conclusion "the shoes are the whole story and the sport has a problem". We are not meant to judge the validity of the conclusion.
 
 **1.**
 > *The post:*
