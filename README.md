@@ -498,6 +498,9 @@ so even at epoch 2 and 3, the results diverge between the two runs.
 **What I predicted before I looked:**
 <!-- Milestone 1 asks you to write this BEFORE seeing the trained numbers. A
      prediction made afterwards isn't one. -->
+I predict that the trained model will outperform the baseline model. There are some
+edge case rules that are necessary to fully partition the data, that are not derivable
+only from the definitions.
 
 **What the gap actually means:**
 <!-- If the baseline matched your trained model, your fine-tuning added
