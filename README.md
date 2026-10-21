@@ -538,31 +538,45 @@ altogether.
 <!-- Five criteria across three seeds. The notebook's section 6 prints the
      spread table; the Target and Verdict columns are yours. -->
 
+| Measure | Seed 42 | Seed 7 | Seed 2024 | Spread |
+|---|---|---|---|---|
+| Overall accuracy | 0.400 | 0.333 | 0.367 | 0.067 |
+| Macro F1 | 0.271 | 0.125 | 0.187 | 0.146 |
+| F1 — `announcement` | 0.615 | 0.000 | 0.000 | 0.615 |
+| F1 — `showcase` | 0.471 | 0.500 | 0.526 | 0.056 |
+| F1 — `advice` | 0.000 | 0.000 | 0.222 | 0.222 |
+| F1 — `news/discussion` | 0.000 | 0.000 | 0.000 | 0.000 |
+
+Accuracy moved 0.067 across seeds. Enough that a criterion landing within that band can't really be called either way.
+
 | Criterion | Target | Seed 42 | Seed 7 | Seed 2024 | Verdict |
 |---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |
+| 1. overall accuracy of at least 0.65 |  |  |  |  |  |
+| 2. all F1 >= 0.55, most frequent label F1 >= 0.70 |  |  |  |  |  |
+| 3. max label 50%, smallest label >= 30 rows |  |  |  |  |  |
+| 4. trained accuracy improvement over baseline >= 0.05 |  |  |  |  |  |
+| 5. predicted probability of >= 0.80 is >= 0.75 accurate |  |  |  |  |  |
 
 ### Confusion matrix
 
 <!-- ⚠️ TYPED AS A MARKDOWN TABLE. The notebook prints one ready to paste.
      An image of a matrix earns nothing. -->
 
-| true \ predicted |  |  |  |
-|---|---|---|---|
-| **** |  |  |  |
-| **** |  |  |  |
-| **** |  |  |  |
+| true \ predicted | announcement | showcase | advice | news/discussion |
+|---|---|---|---|---|
+| **announcement**       | 4 | 3 | 0 | 0 |
+| **showcase**           | 2 | 8 | 0 | 0 |
+| **advice**             | 0 | 7 | 0 | 0 |
+| **news/discussion**    | 0 | 6 | 0 | 0 |
 
 **My biggest off-diagonal number, and what it means:**
 <!-- Not "the model made mistakes" — WHICH boundary it didn't learn, and which
      direction. "7 real analysis posts were called hot_take and only 3 went the
      other way" is a direction, not just an error rate. -->
+Biggest confusion: 7/7 of the advice posts where misclassified as showcase.
 
-
+Notably, the second biggest confusion was for news/discussion, where 6/6 of the 
+posts wer also misclassified as showcase.
 
 ---
 
