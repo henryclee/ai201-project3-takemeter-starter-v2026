@@ -488,12 +488,30 @@ so even at epoch 2 and 3, the results diverge between the two runs.
 <!-- Both models on the same posts. `python baseline.py --trained results.json`
      prints this table for you. -->
 
+advice           F1 0.000   (n=7)
+announcement     F1 0.222   (n=7)
+news/discussion  F1 0.400   (n=6)
+showcase         F1 0.556   (n=10)
+
+**Baseline**
+| Measure | Baseline |
+|---|---|
+| Overall accuracy | 0.433 |
+| Macro F1 | 0.306 |
+| F1 — `advice` | 0.444 |
+| F1 — `announcement` | 0.222 |
+| F1 — `news/discussion` | 0.000 |
+| F1 — `showcase` | 0.556 |
+
+**Trained**
 | Measure | Baseline | Trained | Difference |
 |---|---|---|---|
-| Overall accuracy |  |  |  |
-| Macro F1 |  |  |  |
-| F1 — `label_one` |  |  |  |
-| F1 — `label_two` |  |  |  |
+| Overall accuracy | 0.433 | 0.400 | -0.033 |
+| Macro F1 | 0.306 | 0.271 | -0.034 |
+| F1 — `advice` | 0.444 | 0.000 | -0.444 |
+| F1 — `announcement` | 0.222 | 0.615 | +0.393 |
+| F1 — `news/discussion` | 0.000 | 0.000 | +0.000 |
+| F1 — `showcase` | 0.556 | 0.471 | -0.085 |
 
 **What I predicted before I looked:**
 <!-- Milestone 1 asks you to write this BEFORE seeing the trained numbers. A
@@ -505,8 +523,13 @@ only from the definitions.
 **What the gap actually means:**
 <!-- If the baseline matched your trained model, your fine-tuning added
      nothing — and that is a real finding, not a failure. Say it plainly. -->
+The trained model did not beat the baseline. Overall accuracy went from 0.433 to 0.400, and 
+macro F1 went from 0.306 to 0.271. On thirty held-out posts, one flip is 0.033, so that gap 
+is a single post, so probably not significant.
 
-
+More notably, announcement's F1 rose from 0.222 to 0.615, while advice fell from 0.444 to 0.
+An F1 of exactly zero on a label with 7 true samples means the label stopped predicting advicd
+altogether.
 
 ---
 
