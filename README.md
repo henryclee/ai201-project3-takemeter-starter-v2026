@@ -434,6 +434,8 @@ I made the rules for decision between problematic posts more explicit, and
 eventually had to make an order of precedence for when a post met more than
 one label's definitions.
 
+**Moment 3**
+
 - *What I asked for:*
 I asked AI for help in understanding how to interpret the results.json, and to
 suggest what this represented in terms of failure modes.
@@ -441,6 +443,23 @@ suggest what this represented in terms of failure modes.
 The AI explained the results to make it more understandable to me.
 - *What I changed:*
 This helped me to fill in the analyses for the README.md
+
+**Moment 4**
+- *What I asked for:*
+I asked AI for help in understanding how to interpret and respond to the confidence 
+level stretch feature
+- *What came back:*
+The AI explained the how I interpret the confidence data in the results.json
+- *What I changed:*
+This helped me to fill in the text for the stretch feature.
+
+**Moment 4**
+- *What I asked for:*
+I asked AI for help proofreading.
+- *What came back:*
+The AI found some inconsistencies, and mistakes.
+- *What I changed:*
+I fixed the errors that were identified.
 
 **Pre-labelling disclosure:**
 
@@ -496,10 +515,17 @@ so even at epoch 2 and 3, the results diverge between the two runs.
 <!-- Both models on the same posts. `python baseline.py --trained results.json`
      prints this table for you. -->
 
-advice           F1 0.000   (n=7)
-announcement     F1 0.222   (n=7)
-news/discussion  F1 0.400   (n=6)
-showcase         F1 0.556   (n=10)
+**Baseline with no definitions**
+(from no_def_baseline_results.json)
+
+| Measure | Baseline |
+|---|---|
+| Overall accuracy | 0.367 |
+| Macro F1 | 0.294 |
+| F1 — `advice` | 0.0 |
+| F1 — `announcement` | 0.222 |
+| F1 — `news/discussion` | 0.400 |
+| F1 — `showcase` | 0.556 |
 
 **Baseline**
 | Measure | Baseline |
@@ -562,7 +588,7 @@ Accuracy moved 0.067 across seeds. Enough that a criterion landing within that b
 | 1. Overall accuracy of at least 0.65 | 0.65 | 0.400 | 0.333 | 0.367  | MISSED  |
 | 2. All F1 >= 0.55, most frequent label F1 >= 0.70 | 0.55/0.70 | 0.0 / 0.47 | 0.0 / 0.5 | 0.0 / 0.53 | MISSED |
 | 3. Max label 50%, smallest label >= 30 rows | .50 / 30 | .325 / 43 | .325 / 43 | .325 / 43 | MET |
-| 4. Trained accuracy improvement over baseline >= 0.05 | 0.05 | -0.033 | -0.1 | -0.67 | MISSED |
+| 4. Trained accuracy improvement over baseline >= 0.05 | 0.05 | -0.033 | -0.1 | -0.067 | MISSED |
 | 5. Accuracy on most confident 1/3 >= 0.3 higher than least confident 1/3 | 0.3 | 0.5  | 0.7 | 0.6 | MET  |
 
 ### Confusion matrix
@@ -581,7 +607,7 @@ Accuracy moved 0.067 across seeds. Enough that a criterion landing within that b
 <!-- Not "the model made mistakes" — WHICH boundary it didn't learn, and which
      direction. "7 real analysis posts were called hot_take and only 3 went the
      other way" is a direction, not just an error rate. -->
-Biggest confusion: 7/7 of the advice posts where misclassified as showcase.
+Biggest confusion: 7/7 of the advice posts were misclassified as showcase.
 
 Notably, the second biggest confusion was for news/discussion, where 6/6 of the 
 posts wer also misclassified as showcase.
@@ -596,10 +622,10 @@ posts wer also misclassified as showcase.
 | # | Criterion | Target | Verdict | How I decided |
 |---|---|---|---|---|
 | 1 | Overall accuracy of at least 0.65 | 0.65 | MISSED | Based on the overall accuracy from the results.json
-| 2 | All F1 >= 0.55, most frequent label F1 >= 0.70 | 0.55/0.70 | 0.0 / 0.47 | MISSED | Looked at minimum F1, and the F1 for showcase (most frequent label)
+| 2 | All F1 >= 0.55, most frequent label F1 >= 0.70 | 0.55/0.70 | MISSED | Looked at minimum F1, and the F1 for showcase (most frequent label)
 | 3 | Max label 50%, smallest label >= 30 rows | .50 / 30 | MET | Looked at the distribution of labels 
 | 4 | Trained accuracy improvement over baseline >= 0.05 | 0.05 | MISSED | Compared overall accuracy of trained model over baseline
-| 5 | Accuracy on most confident 1/3 >= 0.3 higher than least confident 1/3 | MET | Looked at accuracy of different confidence intervals from results.json
+| 5 | Accuracy on most confident 1/3 >= 0.3 higher than least confident 1/3 | 0.3 | MET | Looked at accuracy of different confidence intervals from results.json
 
 **Diagnoses**
 
@@ -616,15 +642,15 @@ posts wer also misclassified as showcase.
 
 Cause: The model collapsed toward predicting showcase as a default rather than learning each label's boundary — 
 advice and news/discussion posts are entirely swallowed by showcase, and even some announcement posts go the same 
-way. This appears to be due to inadequate learning from the model (it did not learn any boundary for advice or
-news/discussion)
+way. The model did not learn any boundary for advice or news/discussion. This may be due to inadequate training,
+too few examples per label, or a genuinely hard label pair.
 
 How you know: The confusion matrix shows 7/7 advice posts and 6/6 news/discussion posts predicted as showcase, 
 plus 3/7 announcement posts. That is most of the off-diagonal mass in the whole matrix funneling into one label. 
 The Agreement Report (29/30 = 96.7%, the one disagreement falling in Pile C — a defensible reading, not an 
-inconsistency) rules out "my own labels are noisy" as the explanation, which points instead at a genuinely hard 
+inconsistency) does not suggest a problem of inconsistent labelling, which points instead at a genuinely hard 
 set of boundaries plus too little data per label (30–45 training rows each across 4 labels) for the model to 
-separate them.
+separate them, or an issue of inadequate training.
 
 *Criterion 2:* all F1 >= 0.55, most frequent label F1 >= 0.70
 
@@ -642,14 +668,15 @@ genuinely hard pair, made worse by advice having only ~30 training examples to l
 *Criterion 4:* trained accuracy improvement over baseline >= 0.05
 
 Cause: Fine-tuning didn't just fail to help — it made the model worse at advice specifically. The baseline 
-(zero-shot) could still get some advice posts right; the trained model lost that ability entirely. This appears 
-to be due to inadequate learning from the model (it did not learn any boundary for advice).
+(zero-shot) could still get some advice posts right; the trained model lost that ability entirely. The model
+did not learn any boundary for advice. This may be due to inadequate training, too few examples per label, 
+or a genuinely hard label pair.
 
 How you know: The Baseline vs. Trained table shows advice F1 falling from 0.444 (baseline) to 0.000 (trained), 
 while announcement's F1 jumped from 0.222 to 0.615. Training on 139 rows seems to have let the model sharpen 
 the announcement/showcase boundary at the direct cost of advice, rather than improving uniformly. Again, the 
-Agreement Report rules out a labelling explanation — this reads as "too few examples for a label" combined 
-with "a task the model can't fully reach from this much data," not inconsistent ground truth.
+Agreement Report rules out a labelling explanation — this suggests "too few examples for a label" combined 
+with "a task the model can't fully reach from this much data," or an issue of inadequate training.
 
 ---
 
@@ -717,19 +744,11 @@ more Epochs, suggesting that the learning had not plateaued.
 **Which diagnosis pointed at it:**
 
 All of the misses suggest that the model did not learn any boundary for either advice or news/discussion, 
-since the confusion matrix showed zero predictions for either of these labels. This fact, along with the
-trajectory of improving accuracy noted in Unit 5 stretch feature, suggested that more rigorous training might
-help improve the results.
+since the confusion matrix showed zero predictions for either of these labels. This could be related to inadequate
+training, too few labels, or a specifically difficult boundary. Considering the trajectory of improving accuracy 
+noted in Unit 5 stretch feature, I opted to try more rigorous training via hyperparameter tuning as my first improvement.
 
 ### Run Log — After
-
-| Criterion | Target | Seed 42 | Seed 7 | Seed 2024 | Verdict |
-|---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |
 
 | Criterion | Target | Seed 42 | Seed 7 | Seed 2024 | Verdict |
 |---|---|---|---|---|---|
@@ -780,7 +799,8 @@ adjusting of the training hyperparameters.
 I stopped because I felt there was diminishing educational value in chasing more accuracy for this project.
 I also believe that there are limitations fundamental to the model -- specifically, the bart-large-mnli model 
 has a limited token context (set to 512, 1024 per the model) that is too small to hold some of the posts in 
-their entirety. Thus, both for training and testing, some  of the posts are likely truncated, making accurate classification even more difficult.
+their entirety. Thus, both for training and testing, some of the posts are likely truncated, making accurate 
+classification even more difficult.
 
 
 *Criterion 5*: Accuracy on most confident 1/3 >= 0.3 higher than least confident 1/3
@@ -798,6 +818,31 @@ labelling, such that some posts can legitimately fall into more than one label d
 exercise, we were able to create a true partition with precedency rules, but I do not believe that this 
 nuance could be engrained into the model with the relatively few training examples.
 
+## Stretch Feature - A Confidence Check
+
+Are the model's confident predictions right more often than its unsure ones?
+
+| Seed    |Mean conf (right) | Mean conf (wrong) | Gap |
+| 42      | 0.738 | 0.614 | +0.124 |
+| 7       | 0.648 | 0.685 | −0.037 |
+| 2024    | 0.690 | 0.534 | +0.156 |
+| Mean    | 0.692 | 0.611 | +0.081 |
+
+| Seed | Most-conf third | Least-conf third | Tertile gap |
+| 42      | 0.9 | 0.6 | +0.30 |
+| 7       | 0.8 | 0.9 | −0.10 |
+| 2024    | 0.9 | 0.5 | +0.40 |
+| Mean    | 0.867 | 0.667 | +0.20 |
+
+Two of three seeds show the correct pattern with large margins; one (seed 7) shows a small inversion.
+Seed 7 has the smallest gap of all three on both metrics (0.037 and 0.10, vs. 0.12–0.16 and 0.30–0.40 for 
+the passing seeds). Its inversion is 1 flipped prediction out of 10. This likely represents noise rather
+than a true inversion, but does still indicate a failure of the confidence interval to impart significant
+signal.
+
+Confidence is weakly informative and usable for ranking predictions, but not sharp enough to threshold on 
+reliably; the seed variance indicates the signal is real but small relative to sampling noise at this 
+validation size.
 
 <!-- ═════════════════════════════════════════════════════════════════════
 
