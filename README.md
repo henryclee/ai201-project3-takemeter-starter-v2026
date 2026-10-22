@@ -434,6 +434,14 @@ I made the rules for decision between problematic posts more explicit, and
 eventually had to make an order of precedence for when a post met more than
 one label's definitions.
 
+- *What I asked for:*
+I asked AI for help in understanding how to interpret the results.json, and to
+suggest what this represented in terms of failure modes.
+- *What came back:*
+The AI explained the results to make it more understandable to me.
+- *What I changed:*
+This helped me to fill in the analyses for the README.md
+
 **Pre-labelling disclosure:**
 
 I labelled a batch of the labels in labels.csv manually (note = "cold"). The
@@ -604,10 +612,13 @@ posts wer also misclassified as showcase.
      have that can tell a LABELLING problem from a MODEL problem, and this
      section is graded on whether you used it that way. -->
 
-Miss: overall accuracy of at least 0.65
+*Criterion 1:* overall accuracy of at least 0.65
+
 Cause: The model collapsed toward predicting showcase as a default rather than learning each label's boundary — 
 advice and news/discussion posts are entirely swallowed by showcase, and even some announcement posts go the same 
-way.
+way. This appears to be due to inadequate learning from the model (it did not learn any boundary for advice or
+news/discussion)
+
 How you know: The confusion matrix shows 7/7 advice posts and 6/6 news/discussion posts predicted as showcase, 
 plus 3/7 announcement posts. That is most of the off-diagonal mass in the whole matrix funneling into one label. 
 The Agreement Report (29/30 = 96.7%, the one disagreement falling in Pile C — a defensible reading, not an 
@@ -615,9 +626,12 @@ inconsistency) rules out "my own labels are noisy" as the explanation, which poi
 set of boundaries plus too little data per label (30–45 training rows each across 4 labels) for the model to 
 separate them.
 
-Miss: all F1 >= 0.55, most frequent label F1 >= 0.70
+*Criterion 2:* all F1 >= 0.55, most frequent label F1 >= 0.70
+
 Cause: advice has F1 = 0.000 because the model never predicts it correctly, and showcase (the most frequent 
-label) tops out around 0.47–0.53, short of the 0.70 bar.
+label) tops out around 0.47–0.53, short of the 0.70 bar. This appears to be due to inadequate learning from the 
+model (it did not learn any boundary for advice or news/discussion)
+
 How you know:  Directly from the confusion matrix — all 7 true advice posts were predicted showcase, so advice's 
 recall (and therefore F1) is zero. showcase's own F1 suffers because it's absorbing false positives from advice 
 and news/discussion, hurting its precision. Since the Agreement Report shows high fidelity to the staff taxonomy 
@@ -625,9 +639,12 @@ and news/discussion, hurting its precision. Since the Agreement Report shows hig
 genuinely hard pair, made worse by advice having only ~30 training examples to learn it from.
 
 
-Miss: trained accuracy improvement over baseline >= 0.05
+*Criterion 4:* trained accuracy improvement over baseline >= 0.05
+
 Cause: Fine-tuning didn't just fail to help — it made the model worse at advice specifically. The baseline 
-(zero-shot) could still get some advice posts right; the trained model lost that ability entirely.
+(zero-shot) could still get some advice posts right; the trained model lost that ability entirely. This appears 
+to be due to inadequate learning from the model (it did not learn any boundary for advice).
+
 How you know: The Baseline vs. Trained table shows advice F1 falling from 0.444 (baseline) to 0.000 (trained), 
 while announcement's F1 jumped from 0.222 to 0.615. Training on 139 rows seems to have let the model sharpen 
 the announcement/showcase boundary at the direct cost of advice, rather than improving uniformly. Again, the 
@@ -692,7 +709,17 @@ There was only a single disagreement. I don't think I can identify a pattern off
 
 **What I changed:**
 
+I changed the training parameters. Specifically, I increased Epochs from 3 to 10, and the batch size 
+from 16 to 8 to increase the number of training steps. I noticed in Unit 5 stretch feature when I adjusted 
+the number of Epochs from 3 to 5, that the accuracy and F1 macro both showed continued improvement with 
+more Epochs, suggesting that the learning had not plateaued.
+
 **Which diagnosis pointed at it:**
+
+All of the misses suggest that the model did not learn any boundary for either advice or news/discussion, 
+since the confusion matrix showed zero predictions for either of these labels. This fact, along with the
+trajectory of improving accuracy noted in Unit 5 stretch feature, suggested that more rigorous training might
+help improve the results.
 
 ### Run Log — After
 
@@ -704,12 +731,39 @@ There was only a single disagreement. I don't think I can identify a pattern off
 | 4.  |  |  |  |  |  |
 | 5.  |  |  |  |  |  |
 
+| Criterion | Target | Seed 42 | Seed 7 | Seed 2024 | Verdict |
+|---|---|---|---|---|---|
+| 1. Overall accuracy of at least 0.65 | 0.65 | 0.667 | 0.767 | 0.733  | MET  |
+| 2. All F1 >= 0.55, most frequent label F1 >= 0.70 | 0.55/0.70 | 0.333 / 0.636 | 0.571 / 0.762 | 0.5 / 0.857 | MISSED |
+| 3. Max label 50%, smallest label >= 30 rows | .50 / 30 | .325 / 43 | .325 / 43 | .325 / 43 | MET |
+| 4. Trained accuracy improvement over baseline >= 0.05 | 0.05 | 0.233 | 0.333 | 0.3 | MET |
+| 5. Accuracy on most confident 1/3 >= 0.3 higher than least confident 1/3 | 0.3 | 0.3  | -0.1 | 0.4 | MISSED  |
+
 **Did it help, and how do I know:**
 
 <!-- If it didn't, say so. Relabelling that didn't help is a genuinely
      interesting result and earns full credit. -->
 
+| Measure | Seed 42 | Seed 7 | Seed 2024 | Spread |
+|---|---|---|---|---|
+| Overall accuracy | 0.667 | 0.767 | 0.733 | 0.100 |
+| Macro F1 | 0.653 | 0.767 | 0.695 | 0.114 |
+| F1 — `announcement` | 0.706 | 0.571 | 0.500 | 0.206 |
+| F1 — `showcase` | 0.636 | 0.762 | 0.857 | 0.221 |
+| F1 — `advice` | 0.769 | 0.933 | 0.824 | 0.164 |
+| F1 — `news/discussion` | 0.500 | 0.800 | 0.600 | 0.300 |
 
+| true \ predicted | announcement | showcase | advice | news/discussion |
+|---|---|---|---|---|
+| **announcement**       | 6 | 1 | 0 | 0 |
+| **showcase**           | 3 | 7 | 0 | 0 |
+| **advice**             | 1 | 1 | 5 | 0 |
+| **news/discussion**    | 0 | 3 | 1 | 2 |
+
+Increasing the training epochs and decreasing the batch size made a significant improvement in 
+the trained models performance, as evidenced by both a substantial increase in overall accuracy (from 33-40%
+to 67-77%), improvement in the macro F1 (from 0.125-0.271 to 0.653-0.767), and improvement in 
+the confusion matrix (the classifier now is able to identify a boundary for advice and news/discussion labels).
 
 ---
 
@@ -717,12 +771,32 @@ There was only a single disagreement. I don't think I can identify a pattern off
 
 <!-- For each criterion still missed: what you'd do, and why you stopped. -->
 
+*Criterion 2:* All F1 >= 0.55, most frequent label F1 >= 0.70
+
+Although the increased training made the F1 substantially better, it still failed to meet the criterion. In 
+order to get even better results, next avenues to pursue might include adding more training labels, further 
+adjusting of the training hyperparameters. 
+
+I stopped because I felt there was diminishing educational value in chasing more accuracy for this project.
+I also believe that there are limitations fundamental to the model -- specifically, the bart-large-mnli model 
+has a limited token context (set to 512, 1024 per the model) that is too small to hold some of the posts in 
+their entirety. Thus, both for training and testing, some  of the posts are likely truncated, making accurate classification even more difficult.
 
 
-**The gap between what I meant my labels to capture and what the model
-learned:**
+*Criterion 5*: Accuracy on most confident 1/3 >= 0.3 higher than least confident 1/3
+
+This criterion appears to be somewhat spurious in the 1/3 seeds that missed it -- in seed 7, the accuracy
+in the most confident 1/3 was 0.8, and the accuracy in the least confident 1/3 was 0.9.
+
+**The gap between what I meant my labels to capture and what the model learned:**
 <!-- Two sentences. Your confusion matrix is the evidence. -->
 
+Even with the improvements, the trained model still has difficulty distinguishing a clear boundary between
+showcase and announcement (it predicted 3/10 showcases as announcements), and news/discussion and showcase (it 
+predicted 3/6 news/discussion posts as showcase). I believe that this represents a real ambiguity in the 
+labelling, such that some posts can legitimately fall into more than one label definition. In the labelling 
+exercise, we were able to create a true partition with precedency rules, but I do not believe that this 
+nuance could be engrained into the model with the relatively few training examples.
 
 
 <!-- ═════════════════════════════════════════════════════════════════════
