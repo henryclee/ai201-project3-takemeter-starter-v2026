@@ -121,6 +121,16 @@ p ≥ 0.80 set, while the genuinely hard announcement-vs-showcase boundary shoul
 right no more often than my 0.65 overall bar, the probability column would carry no information about my labels. 0.75 is that 
 separation, stated as a number.
 
+> **Revised in unit 6**: 
+> (revised) Accuracy on the most-confident third of posts must be at least 0.30 higher than accuracy on the least-confident third.
+> 
+> **Why this target:**
+> (revised) If the confidence is to be meaningful, then it should be more accurate when it is confident, and less accurate 
+> when it is not confident. With a test split of 30 posts each confidence third holds 10 posts. That makes the gap coarse: 
+> accuracies move in steps of 0.10, and a 0.30 gap means three more correct posts out of ten. A gap of 0.10 or 0.20 would be
+> one or two posts, inside what a single flipped prediction could produce.
+
+> **Why revised**: The results.json does not include information about this, so it cannot be measured.
 ---
 
 <!-- ─────────────────────────────────────────────────────────────────────────

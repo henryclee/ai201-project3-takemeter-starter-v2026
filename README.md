@@ -551,11 +551,11 @@ Accuracy moved 0.067 across seeds. Enough that a criterion landing within that b
 
 | Criterion | Target | Seed 42 | Seed 7 | Seed 2024 | Verdict |
 |---|---|---|---|---|---|
-| 1. overall accuracy of at least 0.65 | 0.65 | 0.400 | 0.333 | 0.367  | MISSED  |
-| 2. all F1 >= 0.55, most frequent label F1 >= 0.70 |  |  |  |  |  |
-| 3. max label 50%, smallest label >= 30 rows |  |  |  |  |  |
-| 4. trained accuracy improvement over baseline >= 0.05 |  |  |  |  |  |
-| 5. predicted probability of >= 0.80 is >= 0.75 accurate |  |  |  |  |  |
+| 1. Overall accuracy of at least 0.65 | 0.65 | 0.400 | 0.333 | 0.367  | MISSED  |
+| 2. All F1 >= 0.55, most frequent label F1 >= 0.70 | 0.55/0.70 | 0.0 / 0.47 | 0.0 / 0.5 | 0.0 / 0.53 | MISSED |
+| 3. Max label 50%, smallest label >= 30 rows | .50 / 30 | .325 / 43 | .325 / 43 | .325 / 43 | MET |
+| 4. Trained accuracy improvement over baseline >= 0.05 | 0.05 | -0.033 | -0.1 | -0.67 | MISSED |
+| 5. Accuracy on most confident 1/3 >= 0.3 higher than least confident 1/3 | 0.3 | 0.5  | 0.7 | 0.6 | MET  |
 
 ### Confusion matrix
 
@@ -587,11 +587,11 @@ posts wer also misclassified as showcase.
 
 | # | Criterion | Target | Verdict | How I decided |
 |---|---|---|---|---|
-| 1 |  |  |  |  |
-| 2 |  |  |  |  |
-| 3 |  |  |  |  |
-| 4 |  |  |  |  |
-| 5 |  |  |  |  |
+| 1 | Overall accuracy of at least 0.65 | 0.65 | MISSED | Based on the overall accuracy from the results.json
+| 2 | All F1 >= 0.55, most frequent label F1 >= 0.70 | 0.55/0.70 | 0.0 / 0.47 | MISSED | Looked at minimum F1, and the F1 for showcase (most frequent label)
+| 3 | Max label 50%, smallest label >= 30 rows | .50 / 30 | MET | Looked at the distribution of labels 
+| 4 | Trained accuracy improvement over baseline >= 0.05 | 0.05 | MISSED | Compared overall accuracy of trained model over baseline
+| 5 | Accuracy on most confident 1/3 >= 0.3 higher than least confident 1/3 | MET | Looked at accuracy of different confidence intervals from results.json
 
 **Diagnoses**
 
@@ -604,7 +604,35 @@ posts wer also misclassified as showcase.
      have that can tell a LABELLING problem from a MODEL problem, and this
      section is graded on whether you used it that way. -->
 
+Miss: overall accuracy of at least 0.65
+Cause: The model collapsed toward predicting showcase as a default rather than learning each label's boundary — 
+advice and news/discussion posts are entirely swallowed by showcase, and even some announcement posts go the same 
+way.
+How you know: The confusion matrix shows 7/7 advice posts and 6/6 news/discussion posts predicted as showcase, 
+plus 3/7 announcement posts. That is most of the off-diagonal mass in the whole matrix funneling into one label. 
+The Agreement Report (29/30 = 96.7%, the one disagreement falling in Pile C — a defensible reading, not an 
+inconsistency) rules out "my own labels are noisy" as the explanation, which points instead at a genuinely hard 
+set of boundaries plus too little data per label (30–45 training rows each across 4 labels) for the model to 
+separate them.
 
+Miss: all F1 >= 0.55, most frequent label F1 >= 0.70
+Cause: advice has F1 = 0.000 because the model never predicts it correctly, and showcase (the most frequent 
+label) tops out around 0.47–0.53, short of the 0.70 bar.
+How you know:  Directly from the confusion matrix — all 7 true advice posts were predicted showcase, so advice's 
+recall (and therefore F1) is zero. showcase's own F1 suffers because it's absorbing false positives from advice 
+and news/discussion, hurting its precision. Since the Agreement Report shows high fidelity to the staff taxonomy 
+(96.7%, no consistency-pile disagreements), this isn't a labelling problem — it's advice-vs-showcase being a 
+genuinely hard pair, made worse by advice having only ~30 training examples to learn it from.
+
+
+Miss: trained accuracy improvement over baseline >= 0.05
+Cause: Fine-tuning didn't just fail to help — it made the model worse at advice specifically. The baseline 
+(zero-shot) could still get some advice posts right; the trained model lost that ability entirely.
+How you know: The Baseline vs. Trained table shows advice F1 falling from 0.444 (baseline) to 0.000 (trained), 
+while announcement's F1 jumped from 0.222 to 0.615. Training on 139 rows seems to have let the model sharpen 
+the announcement/showcase boundary at the direct cost of advice, rather than improving uniformly. Again, the 
+Agreement Report rules out a labelling explanation — this reads as "too few examples for a label" combined 
+with "a task the model can't fully reach from this much data," not inconsistent ground truth.
 
 ---
 
@@ -638,35 +666,25 @@ posts wer also misclassified as showcase.
      written rule two different ways on 30 posts, that is direct evidence about
      what you did across your own 200. -->
 
-Pile C
-
-"text": "Times are down about 3% since the shoe rules changed, so obviously the shoes are the whole story and the sport has a problem.",
-"staff": "hot_take",
-"mine": "analysis"
-
-Rule 1 is somewhat ambiguous, even in the example given. Whether a checkable fact is "load-bearing" or "decoration" seems entirely subjective. However, in this case, the post is basing an opinion on a checkable fact -- i.e. it is using the "times are down 3% since the shoe rules changed" as evidence for the conclusion "the shoes are the whole story and the sport has a problem". We are not meant to judge the validity of the conclusion.
-
 **1.**
-> *The post:*
->
-> *Staff said / I said:*
->
-> *My call, and why:*
->
-> *Which pile:*
+*The post:*
+"Times are down about 3% since the shoe rules changed, so obviously the shoes are the whole story and the sport has a problem."
 
-**2.**
-> *The post:*
->
-> *Staff said / I said:*
->
-> *My call, and why:*
->
-> *Which pile:*
+*Staff said / I said:*
+hot_take / analysis
+
+*My call, and why:*
+Rule 1 is somewhat ambiguous, even in the example given. Whether a checkable fact is "load-bearing" or "decoration" seems entirely 
+subjective. However, in this case, the post is basing an opinion on a checkable fact -- i.e. it is using the "times are down 3% 
+since the shoe rules changed" as evidence for the conclusion "the shoes are the whole story and the sport has a problem". We are 
+not meant to judge the validity of the conclusion.
+
+*Which pile:*
+C
 
 **What the pattern in my disagreements tells me:**
 
-
+There was only a single disagreement. I don't think I can identify a pattern off of a single disagreement.
 
 ---
 
